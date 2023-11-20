@@ -1,0 +1,235 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+import subprocess
+import sys
+import threading
+from tqdm import tqdm
+from typing import IO, Set, TextIO
+
+from pylspclient.json_rpc_endpoint import JsonRpcEndpoint
+from pylspclient.lsp_endpoint import LspEndpoint
+from pylspclient.lsp_client import LspClient
+from pylspclient.lsp_structs import TextDocumentItem, LANGUAGE_IDENTIFIER
+
+
+class ReadPipe(threading.Thread):
+    def __init__(self, pipe: IO[bytes], out: TextIO):
+        threading.Thread.__init__(self)
+        self.pipe = pipe
+        self.out = out
+
+    def run(self):
+        line = self.pipe.readline().decode("utf-8")
+        while line:
+            print(line, file=self.out)
+            line = self.pipe.readline().decode("utf-8")
+
+
+class FileExtensionFilter:
+    def __init__(self, extensions: Set[str]):
+        self.extensions = extensions
+
+    def __call__(self, file_path):
+        return os.path.splitext(file_path)[1][1:] in self.extensions
+
+
+def _file_uri(path: str):
+    return "file://" + path
+
+
+def _uri_file(uri: str):
+    if not uri.startswith("file://"):
+        raise ValueError("Not a file URI: " + uri)
+    return uri[7:]
+
+
+class DiagnosticCollector:
+    def __init__(self):
+        self.diagnostics = {}
+        self.requested_files = set()
+        self.cond = threading.Condition()
+
+    def handle_publish_diagnostics(self, args):
+        file = _uri_file(args["uri"])
+        if file not in self.requested_files:
+            return
+        self.cond.acquire()
+        self.diagnostics[file] = args["diagnostics"]
+        self.cond.notify()
+        self.cond.release()
+
+    def request_diagnostics(self, lsp_client: LspClient, file_path: str):
+        file_path = os.path.abspath(file_path)
+        languageId = LANGUAGE_IDENTIFIER.CPP
+        version = 1
+        text = open(file_path, "r").read()
+        self.requested_files.add(file_path)
+        lsp_client.didOpen(
+            TextDocumentItem(_file_uri(file_path), languageId, version, text)
+        )
+
+    def fancy_diagnostics(self) -> str:
+        SEVERITY = {
+            1: "Error",
+            2: "Warning",
+            3: "Information",
+            4: "Hint",
+        }
+        fancy_output = ""
+        for file, diagnostics in sorted(self.diagnostics.items()):
+            if len(diagnostics) == 0:
+                continue
+            fancy_output += "----- {} -----\n\n".format(os.path.relpath(file))
+            for diagnostic in diagnostics:
+                source = diagnostic.get("source", None)
+                severity = diagnostic.get("severity", None)
+                code = diagnostic.get("code", None)
+                extra_info = "{}{}{}".format(
+                    f" {source}" if source else "",
+                    f" {SEVERITY[severity]}" if severity else "",
+                    f" [{code}]" if code else "",
+                )
+                if severity == 3:
+                    continue
+                fancy_output += "- line {}, col {}:{}\n{}\n\n".format(
+                    diagnostic["range"]["start"]["line"] + 1,
+                    diagnostic["range"]["start"]["character"] + 1,
+                    extra_info,
+                    diagnostic["message"],
+                )
+            fancy_output += "\n"
+        return fancy_output
+
+
+if __name__ == "__main__":
+    DEFAULT_ALLOW_EXTENSIONS = [
+        "c",
+        "h",
+        "cpp",
+        "cc",
+        "cxx",
+        "hpp",
+        "hh",
+        "hxx",
+        "cu",
+        "cuh",
+    ]
+
+    parser = argparse.ArgumentParser(
+        prog="clangd-tidy",
+        description="Run clangd with clang-tidy and output diagnostics. This aims to serve as a faster alternative to clang-tidy.",
+        epilog="Find more information on https://github.com/lljbash/clangd-tidy.",
+    )
+    parser.add_argument(
+        "-p",
+        "--compile-commands-dir",
+        default="build",
+        help="Specify a path to look for compile_commands.json. If path is invalid, clangd will look in the current directory and parent paths of each source file. [default: build]",
+    )
+    parser.add_argument(
+        "-j",
+        "--jobs",
+        type=int,
+        default=1,
+        help="Number of async workers used by clangd. Background index also uses this many workers. [default: 1]",
+    )
+    parser.add_argument(
+        "--clangd-executable",
+        default="clangd",
+        help="Path to clangd executable. [defalt: clangd]",
+    )
+    parser.add_argument(
+        "--allow-extensions",
+        default=DEFAULT_ALLOW_EXTENSIONS,
+        help=f"A comma-separated list of file extensions to allow. [default: {','.join(DEFAULT_ALLOW_EXTENSIONS)}]",
+    )
+    parser.add_argument("--tqdm", action="store_true", help="Show progress bar.")
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Print verbose output from clangd."
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=argparse.FileType("w"),
+        default=sys.stdout,
+        help="Output file for diagnostics. [default: stdout]",
+    )
+    parser.add_argument(
+        "filename",
+        nargs="+",
+        help="Files to check. Files whose extensions are not in ALLOW_EXTENSIONS will be ignored.",
+    )
+    args = parser.parse_args()
+
+    ext_filter = FileExtensionFilter(set(map(str.strip, args.allow_extensions)))
+    files = list(filter(ext_filter, args.filename))
+    for file in files:
+        if not os.path.isfile(file):
+            print(f"File not found: {file}", file=sys.stderr)
+            exit(1)
+
+    clangd_command = [
+        f"{args.clangd_executable}",
+        f"--compile-commands-dir={args.compile_commands_dir}",
+        "--background-index",
+        "--clang-tidy",
+        f"-j={args.jobs}",
+        "--pch-storage=memory",
+        "--enable-config",
+        "--offset-encoding=utf-16",
+    ]
+
+    p = subprocess.Popen(
+        clangd_command,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    assert p.stderr is not None
+    read_pipe = ReadPipe(p.stderr, args.verbose and sys.stderr or open(os.devnull, "w"))
+    read_pipe.start()
+
+    collector = DiagnosticCollector()
+
+    json_rpc_endpoint = JsonRpcEndpoint(p.stdin, p.stdout)
+    lsp_endpoint = LspEndpoint(
+        json_rpc_endpoint,
+        notify_callbacks={
+            "textDocument/publishDiagnostics": lambda args: collector.handle_publish_diagnostics(
+                args
+            ),
+        },
+    )
+    lsp_client = LspClient(lsp_endpoint)
+
+    root_path = os.path.abspath(".")
+    root_uri = _file_uri(root_path)
+    workspace_folders = [{"name": "foo", "uri": root_uri}]
+
+    lsp_client.initialize(p.pid, None, root_uri, None, None, "off", workspace_folders)
+    lsp_client.initialized()
+
+    for file in files:
+        collector.request_diagnostics(lsp_client, file)
+
+    with tqdm(total=len(files), disable=not args.tqdm) as pbar:
+        collector.cond.acquire()
+        while len(collector.diagnostics) < len(files):
+            pbar.update(len(collector.diagnostics) - pbar.n)
+            collector.cond.wait()
+        pbar.update(len(collector.diagnostics) - pbar.n)
+        collector.cond.release()
+
+    lsp_client.shutdown()
+    lsp_client.exit()
+    lsp_endpoint.join()
+    os.wait()
+    if read_pipe.is_alive():
+        read_pipe.join()
+
+    diagnostics = collector.fancy_diagnostics().strip()
+    print(diagnostics, file=args.output)
+    if diagnostics:
+        exit(1)
