@@ -46,6 +46,19 @@ def _uri_file(uri: str):
 
 
 class DiagnosticCollector:
+    SEVERITY = {
+        1: "Error",
+        2: "Warning",
+        3: "Information",
+        4: "Hint",
+    }
+
+    SEVERITY_INT = {
+        "error": 1,
+        "warn": 2,
+        "hint": 4,
+    }
+
     def __init__(self):
         self.diagnostics = {}
         self.requested_files = set()
@@ -70,13 +83,15 @@ class DiagnosticCollector:
             TextDocumentItem(_file_uri(file_path), languageId, version, text)
         )
 
+    def check_failed(self, fail_on_severity: str) -> bool:
+        severity_level = self.SEVERITY_INT[fail_on_severity]
+        for diagnostics in self.diagnostics.values():
+            for diagnostic in diagnostics:
+                if diagnostic["severity"] <= severity_level:
+                    return True
+        return False
+
     def fancy_diagnostics(self) -> str:
-        SEVERITY = {
-            1: "Error",
-            2: "Warning",
-            3: "Information",
-            4: "Hint",
-        }
         fancy_output = ""
         for file, diagnostics in sorted(self.diagnostics.items()):
             if len(diagnostics) == 0:
@@ -88,7 +103,7 @@ class DiagnosticCollector:
                 code = diagnostic.get("code", None)
                 extra_info = "{}{}{}".format(
                     f" {source}" if source else "",
-                    f" {SEVERITY[severity]}" if severity else "",
+                    f" {self.SEVERITY[severity]}" if severity else "",
                     f" [{code}]" if code else "",
                 )
                 if severity == 3:
@@ -136,6 +151,13 @@ if __name__ == "__main__":
         help="Number of async workers used by clangd. Background index also uses this many workers. [default: 1]",
     )
     parser.add_argument(
+        "-o",
+        "--output",
+        type=argparse.FileType("w"),
+        default=sys.stdout,
+        help="Output file for diagnostics. [default: stdout]",
+    )
+    parser.add_argument(
         "--clangd-executable",
         default="clangd",
         help="Path to clangd executable. [defalt: clangd]",
@@ -145,16 +167,16 @@ if __name__ == "__main__":
         default=DEFAULT_ALLOW_EXTENSIONS,
         help=f"A comma-separated list of file extensions to allow. [default: {','.join(DEFAULT_ALLOW_EXTENSIONS)}]",
     )
+    parser.add_argument(
+        "--fail-on-severity",
+        metavar="SEVERITY",
+        choices=DiagnosticCollector.SEVERITY_INT.keys(),
+        default="hint",
+        help=f"On which severity of diagnostics this program should exit with non-zero status. Candidates: {', '.join(DiagnosticCollector.SEVERITY_INT)}. [default: hint]",
+    )
     parser.add_argument("--tqdm", action="store_true", help="Show progress bar.")
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Print verbose output from clangd."
-    )
-    parser.add_argument(
-        "-o",
-        "--output",
-        type=argparse.FileType("w"),
-        default=sys.stdout,
-        help="Output file for diagnostics. [default: stdout]",
     )
     parser.add_argument(
         "filename",
@@ -173,7 +195,6 @@ if __name__ == "__main__":
     clangd_command = [
         f"{args.clangd_executable}",
         f"--compile-commands-dir={args.compile_commands_dir}",
-        "--background-index",
         "--clang-tidy",
         f"-j={args.jobs}",
         "--pch-storage=memory",
@@ -231,5 +252,5 @@ if __name__ == "__main__":
 
     diagnostics = collector.fancy_diagnostics().strip()
     print(diagnostics, file=args.output)
-    if diagnostics:
+    if collector.check_failed(args.fail_on_severity):
         exit(1)
