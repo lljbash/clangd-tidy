@@ -5,7 +5,6 @@ import os
 import subprocess
 import sys
 import threading
-from tqdm import tqdm
 from typing import IO, Set, TextIO
 
 from pylspclient.json_rpc_endpoint import JsonRpcEndpoint
@@ -174,7 +173,9 @@ if __name__ == "__main__":
         default="hint",
         help=f"On which severity of diagnostics this program should exit with non-zero status. Candidates: {', '.join(DiagnosticCollector.SEVERITY_INT)}. [default: hint]",
     )
-    parser.add_argument("--tqdm", action="store_true", help="Show progress bar.")
+    parser.add_argument(
+        "--tqdm", action="store_true", help="Show progress bar (require tqdm)."
+    )
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Print verbose output from clangd."
     )
@@ -235,12 +236,28 @@ if __name__ == "__main__":
     for file in files:
         collector.request_diagnostics(lsp_client, file)
 
-    with tqdm(total=len(files), disable=not args.tqdm) as pbar:
+    if args.tqdm:
+        try:
+            from tqdm import tqdm
+        except ImportError:
+            print(
+                "tqdm not found. Please install tqdm to enable progress bar.",
+                file=sys.stderr,
+            )
+            args.tqdm = False
+
+    if args.tqdm:
+        with tqdm(total=len(files)) as pbar:
+            collector.cond.acquire()
+            while len(collector.diagnostics) < len(files):
+                pbar.update(len(collector.diagnostics) - pbar.n)
+                collector.cond.wait()
+            pbar.update(len(collector.diagnostics) - pbar.n)
+            collector.cond.release()
+    else:
         collector.cond.acquire()
         while len(collector.diagnostics) < len(files):
-            pbar.update(len(collector.diagnostics) - pbar.n)
             collector.cond.wait()
-        pbar.update(len(collector.diagnostics) - pbar.n)
         collector.cond.release()
 
     lsp_client.shutdown()
