@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import signal
 import subprocess
 import sys
 import threading
@@ -24,6 +25,19 @@ class ReadPipe(threading.Thread):
         while line:
             print(line, file=self.out)
             line = self.pipe.readline().decode("utf-8")
+
+
+def kill_child_process(sig, _, child_processes, pbar):
+    """Kill child processes on SIGINT"""
+    assert sig == signal.SIGINT
+    if pbar is not None:
+        pbar.close()
+    for child in child_processes:
+        print(f"Terminating child process {child.pid}...", file=sys.stderr)
+        child.terminate()
+        child.wait()
+        print(f"Child process {child.pid} terminated.", file=sys.stderr)
+    sys.exit(1)
 
 
 class FileExtensionFilter:
@@ -191,7 +205,7 @@ if __name__ == "__main__":
     for file in files:
         if not os.path.isfile(file):
             print(f"File not found: {file}", file=sys.stderr)
-            exit(1)
+            sys.exit(1)
 
     clangd_command = [
         f"{args.clangd_executable}",
@@ -212,6 +226,10 @@ if __name__ == "__main__":
     assert p.stderr is not None
     read_pipe = ReadPipe(p.stderr, args.verbose and sys.stderr or open(os.devnull, "w"))
     read_pipe.start()
+
+    # Kill clangd subprocess on SIGINT
+    pbar = None  # use to close progress bar if it exists
+    signal.signal(signal.SIGINT, lambda sig, _: kill_child_process(sig, _, [p], pbar))
 
     collector = DiagnosticCollector()
 
