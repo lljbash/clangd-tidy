@@ -154,7 +154,7 @@ if __name__ == "__main__":
         "-p",
         "--compile-commands-dir",
         default="build",
-        help="Specify a path to look for compile_commands.json. If path is invalid, clangd will look in the current directory and parent paths of each source file. [default: build]",
+        help="Specify a path to look for compile_commands.json. If the path is invalid, clangd will look in the current directory and parent paths of each source file. [default: build]",
     )
     parser.add_argument(
         "-j",
@@ -185,10 +185,10 @@ if __name__ == "__main__":
         metavar="SEVERITY",
         choices=DiagnosticCollector.SEVERITY_INT.keys(),
         default="hint",
-        help=f"On which severity of diagnostics this program should exit with non-zero status. Candidates: {', '.join(DiagnosticCollector.SEVERITY_INT)}. [default: hint]",
+        help=f"On which severity of diagnostics this program should exit with a non-zero status. Candidates: {', '.join(DiagnosticCollector.SEVERITY_INT)}. [default: hint]",
     )
     parser.add_argument(
-        "--tqdm", action="store_true", help="Show progress bar (require tqdm)."
+        "--tqdm", action="store_true", help="Show a progress bar (require tqdm)."
     )
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Print verbose output from clangd."
