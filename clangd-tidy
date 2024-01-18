@@ -173,7 +173,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--clangd-executable",
         default="clangd",
-        help="Path to clangd executable. [defalt: clangd]",
+        help="Path to clangd executable. [default: clangd]",
     )
     parser.add_argument(
         "--allow-extensions",
