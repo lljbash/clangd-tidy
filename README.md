@@ -76,7 +76,7 @@ options:
   --fail-on-severity SEVERITY
                         On which severity of diagnostics this program should
                         exit with a non-zero status. Candidates: error, warn,
-                        hint. [default: hint]
+                        info, hint. [default: hint]
   --tqdm                Show a progress bar (require tqdm).
   -v, --verbose         Print verbose output from clangd.
 

@@ -69,6 +69,7 @@ class DiagnosticCollector:
     SEVERITY_INT = {
         "error": 1,
         "warn": 2,
+        "info": 3,
         "hint": 4,
     }
 
@@ -119,7 +120,7 @@ class DiagnosticCollector:
                     f" {self.SEVERITY[severity]}" if severity else "",
                     f" [{code}]" if code else "",
                 )
-                if severity == 3:
+                if source is None and code is None:
                     continue
                 fancy_output += "- line {}, col {}:{}\n{}\n\n".format(
                     diagnostic["range"]["start"]["line"] + 1,
