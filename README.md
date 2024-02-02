@@ -78,6 +78,9 @@ options:
                         exit with a non-zero status. Candidates: error, warn,
                         info, hint. [default: hint]
   --tqdm                Show a progress bar (require tqdm).
+  --github              Append workflow commands for GitHub Actions to output.
+  --git-root GIT_ROOT   Root directory of the git repository. Only works with
+                        --github. [default: current directory]
   -v, --verbose         Print verbose output from clangd.
 
 Find more information on https://github.com/lljbash/clangd-tidy.
