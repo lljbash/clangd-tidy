@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import re
 import os
 import signal
 import subprocess
@@ -59,11 +60,24 @@ def _uri_file(uri: str):
 
 
 class DiagnosticCollector:
+
+    class bcolors:
+        error = '\033[91m'
+        warning = '\033[93m'
+        info = '\033[96m'
+        hint = '\033[94m'
+        note = '\033[90m'
+        green = '\033[92m'
+        bold = '\033[1m'
+        endc = '\033[0m'
+
+
+    
     SEVERITY = {
-        1: "Error",
-        2: "Warning",
-        3: "Information",
-        4: "Hint",
+        1: f"{bcolors.error}Error{bcolors.endc}",
+        2: f"{bcolors.warning}Warning{bcolors.endc}",
+        3: f"{bcolors.info}Information{bcolors.endc}",
+        4: f"{bcolors.hint}Hint{bcolors.endc}",
     }
     SEVERITY_INT = {
         "error": 1,
@@ -77,6 +91,7 @@ class DiagnosticCollector:
         3: "notice",
         4: "notice",
     }
+
 
     def __init__(self):
         self.diagnostics = {}
@@ -109,29 +124,91 @@ class DiagnosticCollector:
                 if diagnostic["severity"] <= severity_level:
                     return True
         return False
+    
+    def create_code_context(self, file : str, line_start : int, col_start : int, col_end : int, amount_of_context : int) -> str:
+        code = ""
+        width = 5
+        line_indicator = " |  "
+        with open(file, 'r') as f:
+            content = f.readlines()
+            code = content[line_start - amount_of_context: line_start + amount_of_context + 1]
+            
+        highlight = f"{' ' * (col_start) + '^' + '-' * (col_end - col_start - 1)}\n"
+        highlight_prefix  = f"{' ' * width}{line_indicator}"
+        highlight_colored = f"{highlight_prefix}{self.bcolors.green}{highlight}{self.bcolors.endc}"
+        
+        for idx in range(len(code)):
+            line_number = line_start - amount_of_context + idx + 1 # + 1 due to zero indexing
+            code[idx] = f"{line_number :{width}}{line_indicator}" + code[idx]
+            if not code[idx].endswith('\n'):
+                code[idx] += '\n'
 
-    def fancy_diagnostics(self) -> str:
+        code.insert(amount_of_context + 1, highlight_colored)
+        code = "".join(code)
+
+        return code
+    
+    def create_diagnostic_message(self, file : str, line_start : int, col_start : int, severity : str, message : str, check : str, context : str) -> str:
+
+        output = [
+            f"{file}:{line_start + 1}:{col_start + 1}: {severity}: {message} {check}\n",
+            f"{context}",
+        ]
+        output = "".join(output)
+
+        return output
+
+    def fancy_diagnostics(self, amount_of_context : int) -> str:
+
         fancy_output = ""
+
         for file, diagnostics in sorted(self.diagnostics.items()):
+            
             if len(diagnostics) == 0:
                 continue
-            fancy_output += "----- {} -----\n\n".format(os.path.relpath(file))
+
             for diagnostic in diagnostics:
-                source = diagnostic.get("source", None)
-                severity = diagnostic.get("severity", None)
-                code = diagnostic.get("code", None)
-                extra_info = "{}{}{}".format(
-                    f" {source}" if source else "",
-                    f" {self.SEVERITY[severity]}" if severity else "",
-                    f" [{code}]" if code else "",
-                )
-                line = diagnostic["range"]["start"]["line"] + 1
-                col = diagnostic["range"]["start"]["character"] + 1
-                message = diagnostic["message"]
-                if source is None and code is None:
+
+                if 'code' not in diagnostic:
                     continue
-                fancy_output += f"- line {line}, col {col}:{extra_info}\n{message}\n\n"
-            fancy_output += "\n"
+
+                message = diagnostic["message"].replace(" (fix available)", '')
+
+                message_list = []
+                if "\n" in message:
+                    message_list = message.split("\n")
+                    message_list = [s.replace("\n", "") for s in message_list]
+                    message = message_list[0]
+                    message_list = [item for item in  message_list[1:] if item]
+
+                raw_check = code = diagnostic.get("code", None)
+                check = f"[{raw_check}]" if code else ""
+
+                raw_severity = diagnostic.get("severity", None)
+                severity = f"{self.SEVERITY[raw_severity]}" if raw_severity else ""
+
+                line_start = diagnostic["range"]["start"]["line"]
+
+                col_start = diagnostic["range"]["start"]["character"]
+                col_end = diagnostic["range"]["end"]["character"]
+                
+                context = self.create_code_context(file, line_start, col_start, col_end, amount_of_context)
+
+                fancy_output += self.create_diagnostic_message(file, line_start, col_start, severity, message, check , context)
+
+                if message_list:
+                    for extra_message in message_list:
+                        match_code_loc = re.match(r'.*:(\d+):(\d+):.*', extra_message)
+                        if match_code_loc:
+                            line = int(match_code_loc.group(1)) - 1
+                            col = int(match_code_loc.group(2)) 
+                        extra_message = " ".join(extra_message.split(" ")[2:])
+                        context = self.create_code_context(file, line, col, col, 0) 
+                        note = f"{self.bcolors.note}Note{self.bcolors.endc}"
+                        fancy_output += self.create_diagnostic_message(file, line, col, note, extra_message, "" , context)    
+
+                fancy_output += "\n"
+                    
         return fancy_output
 
     def workflow_commands_for_github_actions(self, git_root: str) -> str:
@@ -235,6 +312,13 @@ if __name__ == "__main__":
         "-v", "--verbose", action="store_true", help="Print verbose output from clangd."
     )
     parser.add_argument(
+        "-c",
+        "--context",
+        type=int,
+        default=2,
+        help="Number of lines of code shown either side of the detected issue. [default: 2]",
+    )
+    parser.add_argument(
         "filename",
         nargs="+",
         help="Files to check. Files whose extensions are not in ALLOW_EXTENSIONS will be ignored.",
@@ -328,7 +412,7 @@ if __name__ == "__main__":
     if read_pipe.is_alive():
         read_pipe.join()
 
-    diagnostics = collector.fancy_diagnostics().strip()
+    diagnostics = collector.fancy_diagnostics(args.context).strip()
     print(diagnostics, file=args.output)
     if args.github:
         print(
