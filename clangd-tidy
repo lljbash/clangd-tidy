@@ -62,14 +62,43 @@ def _uri_file(uri: str):
 class DiagnosticCollector:
 
     class bcolors:
-        error = '\033[91m'
-        warning = '\033[93m'
-        info = '\033[96m'
-        hint = '\033[94m'
-        note = '\033[90m'
-        green = '\033[92m'
-        bold = '\033[1m'
-        endc = '\033[0m'
+        @staticmethod
+        def supports_color():
+            return hasattr(sys.stdout, 'isatty') and sys.stdout.isatty()
+      
+        color_definitions = {
+            'with_color': {
+                'error': '\033[91m',
+                'warning': '\033[93m',
+                'info': '\033[96m',
+                'hint': '\033[94m',
+                'note': '\033[90m',
+                'green': '\033[92m',
+                'bold': '\033[1m',
+                'endc': '\033[0m',
+            },
+            'without_color': {
+                'error': '',
+                'warning': '',
+                'info': '',
+                'hint': '',
+                'note': '',
+                'green': '',
+                'bold': '',
+                'endc': '',
+            }
+        }
+        
+        colors = color_definitions['with_color'] if supports_color() else color_definitions['without_color']
+
+        error = colors['error']
+        warning = colors['warning']
+        info = colors['info']
+        hint = colors['hint']
+        note = colors['note']
+        green = colors['green']
+        bold = colors['bold']
+        endc = colors['endc']
 
 
     
