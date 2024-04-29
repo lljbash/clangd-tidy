@@ -8,10 +8,13 @@ import sys
 import threading
 from typing import IO, Set, TextIO
 
+import diagnostic_formatter
 from pylspclient.json_rpc_endpoint import JsonRpcEndpoint
 from pylspclient.lsp_endpoint import LspEndpoint
 from pylspclient.lsp_client import LspClient
 from pylspclient.lsp_structs import TextDocumentItem, LANGUAGE_IDENTIFIER
+
+__version__ = "0.2.0"
 
 
 class ReadPipe(threading.Thread):
@@ -58,24 +61,16 @@ def _uri_file(uri: str):
     return uri[7:]
 
 
+def _is_output_supports_color(output: TextIO):
+    return hasattr(output, "isatty") and output.isatty()
+
+
 class DiagnosticCollector:
-    SEVERITY = {
-        1: "Error",
-        2: "Warning",
-        3: "Information",
-        4: "Hint",
-    }
     SEVERITY_INT = {
         "error": 1,
         "warn": 2,
         "info": 3,
         "hint": 4,
-    }
-    SEVERITY_GITHUB = {
-        1: "error",
-        2: "warning",
-        3: "notice",
-        4: "notice",
     }
 
     def __init__(self):
@@ -110,56 +105,10 @@ class DiagnosticCollector:
                     return True
         return False
 
-    def fancy_diagnostics(self) -> str:
-        fancy_output = ""
-        for file, diagnostics in sorted(self.diagnostics.items()):
-            if len(diagnostics) == 0:
-                continue
-            fancy_output += "----- {} -----\n\n".format(os.path.relpath(file))
-            for diagnostic in diagnostics:
-                source = diagnostic.get("source", None)
-                severity = diagnostic.get("severity", None)
-                code = diagnostic.get("code", None)
-                extra_info = "{}{}{}".format(
-                    f" {source}" if source else "",
-                    f" {self.SEVERITY[severity]}" if severity else "",
-                    f" [{code}]" if code else "",
-                )
-                line = diagnostic["range"]["start"]["line"] + 1
-                col = diagnostic["range"]["start"]["character"] + 1
-                message = diagnostic["message"]
-                if source is None and code is None:
-                    continue
-                fancy_output += f"- line {line}, col {col}:{extra_info}\n{message}\n\n"
-            fancy_output += "\n"
-        return fancy_output
-
-    def workflow_commands_for_github_actions(self, git_root: str) -> str:
-        commands = "::group::{workflow commands}\n"
-        for file, diagnostics in sorted(self.diagnostics.items()):
-            if len(diagnostics) == 0:
-                continue
-            for diagnostic in diagnostics:
-                source = diagnostic.get("source", None)
-                severity = diagnostic.get("severity", None)
-                code = diagnostic.get("code", None)
-                extra_info = "{}{}{}".format(
-                    f"{source}" if source else "",
-                    f" {self.SEVERITY[severity]}" if severity else "",
-                    f" [{code}]" if code else "",
-                )
-                line = diagnostic["range"]["start"]["line"] + 1
-                end_line = diagnostic["range"]["end"]["line"] + 1
-                col = diagnostic["range"]["start"]["character"] + 1
-                end_col = diagnostic["range"]["end"]["character"] + 1
-                message = diagnostic["message"]
-                if source is None and code is None:
-                    continue
-                command = self.SEVERITY_GITHUB[severity]
-                rel_file = os.path.relpath(file, git_root)
-                commands += f"::{command} file={rel_file},line={line},endLine={end_line},col={col},endCol={end_col},title={extra_info}::{message}\n"
-        commands += "::endgroup::"
-        return commands
+    def format_diagnostics(
+        self, formatter: diagnostic_formatter.DiagnosticFormatter
+    ) -> str:
+        return formatter.format(sorted(self.diagnostics.items())).rstrip()
 
 
 if __name__ == "__main__":
@@ -180,6 +129,9 @@ if __name__ == "__main__":
         prog="clangd-tidy",
         description="Run clangd with clang-tidy and output diagnostics. This aims to serve as a faster alternative to clang-tidy.",
         epilog="Find more information on https://github.com/lljbash/clangd-tidy.",
+    )
+    parser.add_argument(
+        "-V", "--version", action="version", version=f"%(prog)s {__version__}"
     )
     parser.add_argument(
         "-p",
@@ -219,7 +171,7 @@ if __name__ == "__main__":
         help=f"On which severity of diagnostics this program should exit with a non-zero status. Candidates: {', '.join(DiagnosticCollector.SEVERITY_INT)}. [default: hint]",
     )
     parser.add_argument(
-        "--tqdm", action="store_true", help="Show a progress bar (require tqdm)."
+        "--tqdm", action="store_true", help="Show a progress bar (tqdm required)."
     )
     parser.add_argument(
         "--github",
@@ -232,7 +184,25 @@ if __name__ == "__main__":
         help="Root directory of the git repository. Only works with --github. [default: current directory]",
     )
     parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Print verbose output from clangd."
+        "-c",
+        "--compact",
+        action="store_true",
+        help="Print compact diagnostics (legacy).",
+    )
+    parser.add_argument(
+        "--context",
+        type=int,
+        default=2,
+        help="Number of additional lines to display on both sides of each diagnostic. This option is ineffective with --compact. [default: 2]",
+    )
+    parser.add_argument(
+        "--color",
+        choices=["auto", "always", "never"],
+        default="auto",
+        help="Colorize the output. This option is ineffective with --compact. [default: auto]",
+    )
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Show verbose output from clangd."
     )
     parser.add_argument(
         "filename",
@@ -328,11 +298,26 @@ if __name__ == "__main__":
     if read_pipe.is_alive():
         read_pipe.join()
 
-    diagnostics = collector.fancy_diagnostics().strip()
-    print(diagnostics, file=args.output)
+    formatter = (
+        diagnostic_formatter.FancyDiagnosticFormatter(
+            extra_context=args.context,
+            enable_color=(
+                _is_output_supports_color(args.output)
+                if args.color == "auto"
+                else args.color == "always"
+            ),
+        )
+        if not args.compact
+        else diagnostic_formatter.CompactDiagnosticFormatter()
+    )
+    print(collector.format_diagnostics(formatter), file=args.output)
     if args.github:
         print(
-            collector.workflow_commands_for_github_actions(args.git_root).strip(),
+            collector.format_diagnostics(
+                diagnostic_formatter.GithubActionWorkflowCommandDiagnosticFormatter(
+                    args.git_root
+                )
+            ),
             file=args.output,
         )
     if collector.check_failed(args.fail_on_severity):
