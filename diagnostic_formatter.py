@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 import os
 import re
-from typing import Any, Iterable, List, Optional, Tuple, TypeAlias
+from typing import Any, Iterable, Optional, Tuple
 
 
-DiagnosticCollection: TypeAlias = Iterable[Tuple[str, Any]]
+DiagnosticCollection = Iterable[Tuple[str, Any]]
 
 
 class DiagnosticFormatter(ABC):

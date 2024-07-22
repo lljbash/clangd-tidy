@@ -14,7 +14,7 @@ from pylspclient.lsp_endpoint import LspEndpoint
 from pylspclient.lsp_client import LspClient
 from pylspclient.lsp_structs import TextDocumentItem, LANGUAGE_IDENTIFIER
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 
 class ReadPipe(threading.Thread):
