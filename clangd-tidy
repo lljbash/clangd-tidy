@@ -75,6 +75,7 @@ class DiagnosticCollector:
         "warn": 2,
         "info": 3,
         "hint": 4,
+        "never": 5,
     }
 
     def __init__(self):
@@ -226,7 +227,7 @@ if __name__ == "__main__":
     for file in files:
         if not os.path.isfile(file):
             print(f"File not found: {file}", file=sys.stderr)
-            sys.exit(1)
+            exit(1)
 
     clangd_command = [
         f"{args.clangd_executable}",
