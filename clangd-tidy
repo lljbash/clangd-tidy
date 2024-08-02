@@ -6,6 +6,8 @@ import signal
 import subprocess
 import sys
 import threading
+import pathlib
+from urllib.parse import urlparse, unquote
 from typing import IO, Set, TextIO
 
 import diagnostic_formatter
@@ -52,13 +54,15 @@ class FileExtensionFilter:
 
 
 def _file_uri(path: str):
-    return "file://" + path
+    return pathlib.Path(path).as_uri()
 
 
 def _uri_file(uri: str):
-    if not uri.startswith("file://"):
-        raise ValueError("Not a file URI: " + uri)
-    return uri[7:]
+    path = unquote(urlparse(uri).path)
+    if path.startswith('/') and ':' in path[1:3]:
+        # Probably a WIndows path that ended up getting an erroneous leading slash
+        path = path[1:]
+    return path
 
 
 def _is_output_supports_color(output: TextIO):
@@ -80,7 +84,7 @@ class DiagnosticCollector:
 
     def handle_publish_diagnostics(self, args):
         file = _uri_file(args["uri"])
-        if file not in self.requested_files:
+        if pathlib.Path(file) not in self.requested_files:
             return
         self.cond.acquire()
         self.diagnostics[file] = args["diagnostics"]
@@ -88,7 +92,7 @@ class DiagnosticCollector:
         self.cond.release()
 
     def request_diagnostics(self, lsp_client: LspClient, file_path: str):
-        file_path = os.path.abspath(file_path)
+        file_path = pathlib.Path(file_path).resolve()
         languageId = LANGUAGE_IDENTIFIER.CPP
         version = 1
         text = open(file_path, "r").read()
@@ -138,6 +142,12 @@ if __name__ == "__main__":
         "--compile-commands-dir",
         default="build",
         help="Specify a path to look for compile_commands.json. If the path is invalid, clangd will look in the current directory and parent paths of each source file. [default: build]",
+    )
+    parser.add_argument(
+        "-q",
+        "--query-driver",
+        type=str,
+        help="Query driver to pass to clangd, if any."
     )
     parser.add_argument(
         "-j",
@@ -228,6 +238,9 @@ if __name__ == "__main__":
         "--offset-encoding=utf-16",
     ]
 
+    if args.query_driver:
+        clangd_command.append(f"--query-driver={args.query_driver}")
+
     p = subprocess.Popen(
         clangd_command,
         stdin=subprocess.PIPE,
@@ -294,7 +307,7 @@ if __name__ == "__main__":
     lsp_client.shutdown()
     lsp_client.exit()
     lsp_endpoint.join()
-    os.wait()
+    p.wait()
     if read_pipe.is_alive():
         read_pipe.join()
 

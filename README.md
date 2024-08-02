@@ -47,6 +47,7 @@ Unfortunately, there seems to be no plan within LLVM to accelerate the standalon
 
 ```
 usage: clangd-tidy [-h] [-p COMPILE_COMMANDS_DIR] [-j JOBS] [-o OUTPUT]
+                   [-j JOBS] [-o OUTPUT]
                    [--clangd-executable CLANGD_EXECUTABLE]
                    [--allow-extensions ALLOW_EXTENSIONS]
                    [--fail-on-severity SEVERITY] [--tqdm] [--github]
@@ -69,6 +70,8 @@ options:
                         the path is invalid, clangd will look in the current
                         directory and parent paths of each source file.
                         [default: build]
+  -q QUERY_DRIVER, --query-driver QUERY_DRIVER
+                        Query driver to pass to clangd, if any.
   -j JOBS, --jobs JOBS  Number of async workers used by clangd. Background
                         index also uses this many workers. [default: 1]
   -o OUTPUT, --output OUTPUT
