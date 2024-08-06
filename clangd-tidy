@@ -71,11 +71,11 @@ def _is_output_supports_color(output: TextIO):
 
 class DiagnosticCollector:
     SEVERITY_INT = {
+        "never": 0,
         "error": 1,
         "warn": 2,
         "info": 3,
         "hint": 4,
-        "never": 5,
     }
 
     def __init__(self):
