@@ -223,7 +223,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     ext_filter = FileExtensionFilter(set(map(str.strip, args.allow_extensions)))
-    files = list(filter(ext_filter, args.filename))
+    # Resolve all paths and make sure only unique paths are kept
+    files = set([pathlib.Path(file).resolve() for file in filter(ext_filter, args.filename)])
     for file in files:
         if not os.path.isfile(file):
             print(f"File not found: {file}", file=sys.stderr)
@@ -296,21 +297,25 @@ if __name__ == "__main__":
             collector.cond.acquire()
             while len(collector.diagnostics) < len(files):
                 pbar.update(len(collector.diagnostics) - pbar.n)
-                collector.cond.wait()
+		# TODO: Handle timeout
+                collector.cond.wait(60)
             pbar.update(len(collector.diagnostics) - pbar.n)
             collector.cond.release()
     else:
         collector.cond.acquire()
         while len(collector.diagnostics) < len(files):
-            collector.cond.wait()
+            # TODO: Handle timeout
+            collector.cond.wait(60)
         collector.cond.release()
 
     lsp_client.shutdown()
     lsp_client.exit()
     lsp_endpoint.join()
-    p.wait()
+
+    # TODO Handle timeout
+    p.wait(60)
     if read_pipe.is_alive():
-        read_pipe.join()
+        read_pipe.join(60)
 
     formatter = (
         diagnostic_formatter.FancyDiagnosticFormatter(
