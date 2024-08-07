@@ -324,6 +324,11 @@ if __name__ == "__main__":
                     file=sys.stderr,
                 )
                 is_aborted_due_to_timeout = True
+                # Print missing files
+                transformed_diag_files = set(map(pathlib.Path, collector.diagnostics.keys()))
+                for file in files:
+                    if file not in transformed_diag_files:
+                        print(f"File not found in diagnostics: {file}", file=sys.stderr)
                 break
             previous_len = len(collector.diagnostics)
             collector.cond.wait(300)
