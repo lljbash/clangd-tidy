@@ -222,9 +222,11 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    ext_filter = FileExtensionFilter(set(map(str.strip, args.allow_extensions)))
+    ext_filter = FileExtensionFilter(
+        set(map(str.strip, args.allow_extensions)))
     # Resolve all paths and make sure only unique paths are kept
-    files = set([pathlib.Path(file).resolve() for file in filter(ext_filter, args.filename)])
+    files = set([pathlib.Path(file).resolve()
+                for file in filter(ext_filter, args.filename)])
     for file in files:
         if not os.path.isfile(file):
             print(f"File not found: {file}", file=sys.stderr)
@@ -250,12 +252,14 @@ if __name__ == "__main__":
         stderr=subprocess.PIPE,
     )
     assert p.stderr is not None
-    read_pipe = ReadPipe(p.stderr, args.verbose and sys.stderr or open(os.devnull, "w"))
+    read_pipe = ReadPipe(
+        p.stderr, args.verbose and sys.stderr or open(os.devnull, "w"))
     read_pipe.start()
 
     # Kill clangd subprocess on SIGINT
     pbar = None  # use to close progress bar if it exists
-    signal.signal(signal.SIGINT, lambda sig, _: kill_child_process(sig, _, [p], pbar))
+    signal.signal(signal.SIGINT, lambda sig,
+                  _: kill_child_process(sig, _, [p], pbar))
 
     collector = DiagnosticCollector()
 
@@ -274,7 +278,8 @@ if __name__ == "__main__":
     root_uri = _file_uri(root_path)
     workspace_folders = [{"name": "foo", "uri": root_uri}]
 
-    lsp_client.initialize(p.pid, None, root_uri, None, None, "off", workspace_folders)
+    lsp_client.initialize(p.pid, None, root_uri, None,
+                          None, "off", workspace_folders)
     lsp_client.initialized()
 
     for file in files:
@@ -290,6 +295,8 @@ if __name__ == "__main__":
             )
             args.tqdm = False
 
+    is_aborted_due_to_timeout = False
+    previous_len = -1
     if args.tqdm:
         from tqdm import tqdm
 
@@ -297,22 +304,35 @@ if __name__ == "__main__":
             collector.cond.acquire()
             while len(collector.diagnostics) < len(files):
                 pbar.update(len(collector.diagnostics) - pbar.n)
-		# TODO: Handle timeout
-                collector.cond.wait(60)
+                if len(collector.diagnostics) <= previous_len:
+                    print(
+                        "No new diagnostics. Something is probably stuck.",
+                        file=sys.stderr,
+                    )
+                    is_aborted_due_to_timeout = True
+                    break
+                previous_len = len(collector.diagnostics)
+                collector.cond.wait(300)
             pbar.update(len(collector.diagnostics) - pbar.n)
             collector.cond.release()
     else:
         collector.cond.acquire()
         while len(collector.diagnostics) < len(files):
-            # TODO: Handle timeout
-            collector.cond.wait(60)
+            if len(collector.diagnostics) <= previous_len:
+                print(
+                    "No new diagnostics. Something is probably stuck.",
+                    file=sys.stderr,
+                )
+                is_aborted_due_to_timeout = True
+                break
+            previous_len = len(collector.diagnostics)
+            collector.cond.wait(300)
         collector.cond.release()
 
     lsp_client.shutdown()
     lsp_client.exit()
-    lsp_endpoint.join()
+    lsp_endpoint.join(60)
 
-    # TODO Handle timeout
     p.wait(60)
     if read_pipe.is_alive():
         read_pipe.join(60)
@@ -339,5 +359,7 @@ if __name__ == "__main__":
             ),
             file=args.output,
         )
+    if is_aborted_due_to_timeout:
+        exit(2)
     if collector.check_failed(args.fail_on_severity):
         exit(1)
