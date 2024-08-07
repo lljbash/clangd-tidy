@@ -331,11 +331,14 @@ if __name__ == "__main__":
 
     lsp_client.shutdown()
     lsp_client.exit()
-    lsp_endpoint.join(60)
 
-    p.wait(60)
-    if read_pipe.is_alive():
-        read_pipe.join(60)
+    try:
+        lsp_endpoint.join(60)
+        p.wait(60)
+        if read_pipe.is_alive():
+            read_pipe.join(60)
+    except subprocess.TimeoutExpired:
+        print("Failed to terminate clangd process.", file=sys.stderr)
 
     formatter = (
         diagnostic_formatter.FancyDiagnosticFormatter(
