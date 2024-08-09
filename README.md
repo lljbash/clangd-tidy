@@ -46,13 +46,13 @@ Unfortunately, there seems to be no plan within LLVM to accelerate the standalon
 ## Usage
 
 ```
-usage: clangd-tidy [-h] [-p COMPILE_COMMANDS_DIR] [-j JOBS] [-o OUTPUT]
-                   [-j JOBS] [-o OUTPUT]
+usage: clangd-tidy [-h] [-V] [-p COMPILE_COMMANDS_DIR]
+                   [--query-driver QUERY_DRIVER] [-j JOBS] [-o OUTPUT]
                    [--clangd-executable CLANGD_EXECUTABLE]
                    [--allow-extensions ALLOW_EXTENSIONS]
                    [--fail-on-severity SEVERITY] [--tqdm] [--github]
-                   [--git-root GIT_ROOT] [-c] [--context CONTEXT]
-                   [--color {auto,always,never}] [-v]
+                   [--gitlab [JSON]] [-q] [--git-root GIT_ROOT] [-c]
+                   [--context CONTEXT] [--color {auto,always,never}] [-v]
                    filename [filename ...]
 
 Run clangd with clang-tidy and output diagnostics. This aims to serve as a
@@ -70,7 +70,7 @@ options:
                         the path is invalid, clangd will look in the current
                         directory and parent paths of each source file.
                         [default: build]
-  -q QUERY_DRIVER, --query-driver QUERY_DRIVER
+  --query-driver QUERY_DRIVER
                         Query driver to pass to clangd, if any.
   -j JOBS, --jobs JOBS  Number of async workers used by clangd. Background
                         index also uses this many workers. [default: 1]
@@ -83,10 +83,13 @@ options:
                         [default: c,h,cpp,cc,cxx,hpp,hh,hxx,cu,cuh]
   --fail-on-severity SEVERITY
                         On which severity of diagnostics this program should
-                        exit with a non-zero status. Candidates: error, warn,
-                        info, hint. [default: hint]
+                        exit with a non-zero status. Candidates: never, error,
+                        warn, info, hint. [default: hint]
   --tqdm                Show a progress bar (tqdm required).
   --github              Append workflow commands for GitHub Actions to output.
+  --gitlab [JSON]       Create code quality report for GitLab CI/CD. If a value
+                        is provided, it will be used as the filename.
+  -q, --quiet           Do not pretty print warnings to output.
   --git-root GIT_ROOT   Root directory of the git repository. Only works with
                         --github. [default: current directory]
   -c, --compact         Print compact diagnostics (legacy).

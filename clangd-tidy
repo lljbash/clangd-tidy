@@ -145,7 +145,6 @@ if __name__ == "__main__":
         help="Specify a path to look for compile_commands.json. If the path is invalid, clangd will look in the current directory and parent paths of each source file. [default: build]",
     )
     parser.add_argument(
-        "-q",
         "--query-driver",
         type=str,
         help="Query driver to pass to clangd, if any."
@@ -188,6 +187,21 @@ if __name__ == "__main__":
         "--github",
         action="store_true",
         help="Append workflow commands for GitHub Actions to output.",
+    )
+    parser.add_argument(
+        "--gitlab",
+        metavar="JSON",
+        const='gl-code-quality-report.json',
+        default=None,
+        nargs='?',
+        help="Create code quality report for GitLab CI/CD. If a value is provided, it will be used as the filename.",
+    )
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        default=False,
+        help="Do not pretty print warnings to output.",
     )
     parser.add_argument(
         "--git-root",
@@ -325,10 +339,12 @@ if __name__ == "__main__":
                 )
                 is_aborted_due_to_timeout = True
                 # Print missing files
-                transformed_diag_files = set(map(pathlib.Path, collector.diagnostics.keys()))
+                transformed_diag_files = set(
+                    map(pathlib.Path, collector.diagnostics.keys()))
                 for file in files:
                     if file not in transformed_diag_files:
-                        print(f"File not found in diagnostics: {file}", file=sys.stderr)
+                        print(
+                            f"File not found in diagnostics: {file}", file=sys.stderr)
                 break
             previous_len = len(collector.diagnostics)
             collector.cond.wait(300)
@@ -345,19 +361,20 @@ if __name__ == "__main__":
     except subprocess.TimeoutExpired:
         print("Failed to terminate clangd process.", file=sys.stderr)
 
-    formatter = (
-        diagnostic_formatter.FancyDiagnosticFormatter(
-            extra_context=args.context,
-            enable_color=(
-                _is_output_supports_color(args.output)
-                if args.color == "auto"
-                else args.color == "always"
-            ),
+    if not args.quiet:
+        formatter = (
+            diagnostic_formatter.FancyDiagnosticFormatter(
+                extra_context=args.context,
+                enable_color=(
+                    _is_output_supports_color(args.output)
+                    if args.color == "auto"
+                    else args.color == "always"
+                ),
+            )
+            if not args.compact
+            else diagnostic_formatter.CompactDiagnosticFormatter()
         )
-        if not args.compact
-        else diagnostic_formatter.CompactDiagnosticFormatter()
-    )
-    print(collector.format_diagnostics(formatter), file=args.output)
+        print(collector.format_diagnostics(formatter), file=args.output)
     if args.github:
         print(
             collector.format_diagnostics(
@@ -366,6 +383,13 @@ if __name__ == "__main__":
                 )
             ),
             file=args.output,
+        )
+    if args.gitlab is not None:
+        collector.format_diagnostics(
+            diagnostic_formatter.GitLabCodeQualityDiagnosticFormatter(
+                args.gitlab,
+                args.git_root
+            )
         )
     if is_aborted_due_to_timeout:
         exit(2)

@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
+import json
 import os
 import re
+import hashlib
+import pathlib
 from typing import Any, Iterable, Optional, Tuple
 
 
@@ -83,6 +86,76 @@ class GithubActionWorkflowCommandDiagnosticFormatter(DiagnosticFormatter):
                 commands += f"::{command} file={rel_file},line={line},endLine={end_line},col={col},endCol={end_col},title={extra_info}::{message}\n"
         commands += "::endgroup::"
         return commands
+
+
+class GitLabCodeQualityDiagnosticFormatter(DiagnosticFormatter):
+    """
+    Format diagnostics as GitLab Code Quality report.
+    See https://docs.gitlab.com/ee/ci/testing/code_quality.html#implement-a-custom-tool
+    """
+    SEVERITY_GITLAB = {
+        1: "critical",
+        2: "major",
+        3: "minor",
+        4: "info",
+    }
+
+    def __init__(self, output_file: str, git_root: str):
+        self._output_file = output_file
+        self._git_root = git_root
+        self._whitespace_pattern = re.compile(r'\s+')
+
+    def create_fingerprint(self, source, file, message, code):
+        # First combine filename, message and code, remove all whitespace and create a hash.
+        # Then, prefix with the stripped source and return.
+        filename = pathlib.Path(file).name
+        hash_str = re.sub(self._whitespace_pattern, '',
+                          f"{filename}:{message}:{code}")
+        # Create SHA256 hash digest
+        hash_digest = hashlib.sha256(hash_str.encode()).hexdigest()
+        # Clean up source
+        source = re.sub(self._whitespace_pattern, '', source)
+        return f"{source}:{hash_digest}"
+
+    def write_to_file(self, items):
+        with open(self._output_file, "w") as f:
+            f.write(json.dumps(items))
+
+    def format(self, diagnostic_collection: DiagnosticCollection) -> str:
+        fix_available_suffix = " (fix available)"
+        items = []
+        for file, diagnostics in diagnostic_collection:
+            if len(diagnostics) == 0:
+                continue
+            for diagnostic in diagnostics:
+                code = diagnostic.get("code", None)
+                if code is None:
+                    continue
+                source = diagnostic.get("source", "clangd-tidy")
+                severity = diagnostic.get("severity", 4)
+                line = diagnostic["range"]["start"]["line"] + 1
+                end_line = diagnostic["range"]["end"]["line"] + 1
+                message = diagnostic["message"].strip()
+                # If message ends with " (fix available)", remove it.
+                if message.endswith(fix_available_suffix):
+                    message = message[:-len(fix_available_suffix)].strip()
+                rel_file = os.path.relpath(file, self._git_root)
+                entry = {}
+                entry["fingerprint"] = self.create_fingerprint(
+                    source, rel_file, message, code)
+                entry["description"] = f"{message}"
+                entry["severity"] = self.SEVERITY_GITLAB[severity]
+                entry["location"] = {
+                    "path": rel_file,
+                    "lines": {
+                        "begin": line,
+                        "end": end_line
+                    }
+                }
+                items.append(entry)
+        # Write JSON to _output_file
+        self.write_to_file(items)
+        return ""
 
 
 class FancyDiagnosticFormatter(DiagnosticFormatter):
