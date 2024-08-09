@@ -254,10 +254,16 @@ if __name__ == "__main__":
         "--pch-storage=memory",
         "--enable-config",
         "--offset-encoding=utf-16",
+        # TODO: Remove these options as they were for debugging why we do not get full analysis on GitLab CI pipeline!?
+        "--log=info",
     ]
 
     if args.query_driver:
         clangd_command.append(f"--query-driver={args.query_driver}")
+
+    # TODO: Remove the following lines as it was for debugging why we do not get full analysis on GitLab CI pipeline!?
+    command_str = " ".join(clangd_command)
+    print(f"Starting clangd with command: {command_str}", file=sys.stderr)
 
     p = subprocess.Popen(
         clangd_command,
@@ -292,6 +298,8 @@ if __name__ == "__main__":
     root_uri = _file_uri(root_path)
     workspace_folders = [{"name": "foo", "uri": root_uri}]
 
+    # TODO: Remove the following line as it was for debugging why we do not get full analysis on GitLab CI pipeline!?
+    print(f"Init LSP client with root URI: {root_uri}", file=sys.stderr)
     lsp_client.initialize(p.pid, None, root_uri, None,
                           None, "off", workspace_folders)
     lsp_client.initialized()
@@ -347,7 +355,13 @@ if __name__ == "__main__":
                             f"File not found in diagnostics: {file}", file=sys.stderr)
                 break
             previous_len = len(collector.diagnostics)
+            
+            # TODO: Remove the following line as it was for debugging why we do not get full analysis on GitLab CI pipeline!?
+            print(f"Got diagnostics for {previous_len} out of {len(files)} files.", file=sys.stderr)
+            sys.stderr.flush()
             collector.cond.wait(300)
+        # TODO: Remove the following line as it was for debugging why we do not get full analysis on GitLab CI pipeline!?
+        print(f"Got all diagnostics for {len(files)} files.", file=sys.stderr)
         collector.cond.release()
 
     lsp_client.shutdown()
