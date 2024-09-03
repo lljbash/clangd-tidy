@@ -43,6 +43,12 @@ Unfortunately, there seems to be no plan within LLVM to accelerate the standalon
 - Python 3.8+ (may work on older versions, but not tested)
 - [tqdm](https://github.com/tqdm/tqdm) (optional)
 
+## Installation
+
+```bash
+pip install clangd-tidy
+```
+
 ## Usage
 
 ```

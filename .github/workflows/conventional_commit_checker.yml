@@ -1,0 +1,16 @@
+name: Conventional Commit Checker
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  check-for-cc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conventional Commit Checker
+        id: conventional-commit-checker
+        uses: agenthunt/conventional-commit-checker-action@v2.0.0
+        with:
+          pr-title-regex: '^((build|ci|chore|docs|feat|fix|perf|refactor|revert|style|test)!?(\([a-z0-9-]+\))?: .+)$'
+          pr-body-regex: '^((?!null)|null.*)\S'

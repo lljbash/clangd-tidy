@@ -1,8 +1,9 @@
 from __future__ import print_function
 import json
 import re
-from pylspclient import lsp_structs
 import threading
+
+from . import lsp_structs
 
 JSON_RPC_REQ_FORMAT = "Content-Length: {json_string_len}\r\n\r\n{json_string}"
 LEN_HEADER = "Content-Length: "

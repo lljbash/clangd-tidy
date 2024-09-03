@@ -8,13 +8,19 @@ import sys
 import threading
 from typing import IO, Set, TextIO
 
-import diagnostic_formatter
-from pylspclient.json_rpc_endpoint import JsonRpcEndpoint
-from pylspclient.lsp_endpoint import LspEndpoint
-from pylspclient.lsp_client import LspClient
-from pylspclient.lsp_structs import TextDocumentItem, LANGUAGE_IDENTIFIER
+from .diagnostic_formatter import (
+    DiagnosticFormatter,
+    CompactDiagnosticFormatter,
+    FancyDiagnosticFormatter,
+    GithubActionWorkflowCommandDiagnosticFormatter,
+)
+from .pylspclient.json_rpc_endpoint import JsonRpcEndpoint
+from .pylspclient.lsp_endpoint import LspEndpoint
+from .pylspclient.lsp_client import LspClient
+from .pylspclient.lsp_structs import TextDocumentItem, LANGUAGE_IDENTIFIER
+from .version import __version__
 
-__version__ = "0.2.1"
+__all__ = ["main_cli"]
 
 
 class ReadPipe(threading.Thread):
@@ -105,13 +111,11 @@ class DiagnosticCollector:
                     return True
         return False
 
-    def format_diagnostics(
-        self, formatter: diagnostic_formatter.DiagnosticFormatter
-    ) -> str:
+    def format_diagnostics(self, formatter: DiagnosticFormatter) -> str:
         return formatter.format(sorted(self.diagnostics.items())).rstrip()
 
 
-if __name__ == "__main__":
+def main_cli():
     DEFAULT_ALLOW_EXTENSIONS = [
         "c",
         "h",
@@ -299,7 +303,7 @@ if __name__ == "__main__":
         read_pipe.join()
 
     formatter = (
-        diagnostic_formatter.FancyDiagnosticFormatter(
+        FancyDiagnosticFormatter(
             extra_context=args.context,
             enable_color=(
                 _is_output_supports_color(args.output)
@@ -308,15 +312,13 @@ if __name__ == "__main__":
             ),
         )
         if not args.compact
-        else diagnostic_formatter.CompactDiagnosticFormatter()
+        else CompactDiagnosticFormatter()
     )
     print(collector.format_diagnostics(formatter), file=args.output)
     if args.github:
         print(
             collector.format_diagnostics(
-                diagnostic_formatter.GithubActionWorkflowCommandDiagnosticFormatter(
-                    args.git_root
-                )
+                GithubActionWorkflowCommandDiagnosticFormatter(args.git_root)
             ),
             file=args.output,
         )
