@@ -55,10 +55,10 @@ pip install clangd-tidy
 usage: clangd-tidy [-h] [-p COMPILE_COMMANDS_DIR] [-j JOBS] [-o OUTPUT]
                    [--clangd-executable CLANGD_EXECUTABLE]
                    [--allow-extensions ALLOW_EXTENSIONS]
-                   [--fail-on-severity SEVERITY] [--tqdm] [--github]
-                   [--git-root GIT_ROOT] [-c] [--context CONTEXT]
-                   [--color {auto,always,never}] [-v]
-                   filename [filename ...]
+                   [--fail-on-severity SEVERITY] [--line-filter LINE_FILTER]
+                   [--tqdm] [--github] [--git-root GIT_ROOT] 
+                   [-c] [--context CONTEXT] [--color {auto,always,never}]
+                   [-v] filename [filename ...]
 
 Run clangd with clang-tidy and output diagnostics. This aims to serve as a
 faster alternative to clang-tidy.
@@ -88,6 +88,8 @@ options:
                         On which severity of diagnostics this program should
                         exit with a non-zero status. Candidates: error, warn,
                         info, hint. [default: hint]
+  --line-filter LINE_FILTER
+                        A JSON with a list of files and line ranges that will act as a filter for diagnostics. Compatible with clang-tidy --line-filter parameter format.                        
   --tqdm                Show a progress bar (tqdm required).
   --github              Append workflow commands for GitHub Actions to output.
   --git-root GIT_ROOT   Root directory of the git repository. Only works with

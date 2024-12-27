@@ -8,16 +8,18 @@ import sys
 import threading
 from typing import IO, Set, TextIO
 
+from clangd_tidy.lines_filter import LineFilter
+
 from .diagnostic_formatter import (
-    DiagnosticFormatter,
     CompactDiagnosticFormatter,
+    DiagnosticFormatter,
     FancyDiagnosticFormatter,
     GithubActionWorkflowCommandDiagnosticFormatter,
 )
 from .pylspclient.json_rpc_endpoint import JsonRpcEndpoint
-from .pylspclient.lsp_endpoint import LspEndpoint
 from .pylspclient.lsp_client import LspClient
-from .pylspclient.lsp_structs import TextDocumentItem, LANGUAGE_IDENTIFIER
+from .pylspclient.lsp_endpoint import LspEndpoint
+from .pylspclient.lsp_structs import LANGUAGE_IDENTIFIER, TextDocumentItem
 from .version import __version__
 
 __all__ = ["main_cli"]
@@ -79,17 +81,20 @@ class DiagnosticCollector:
         "hint": 4,
     }
 
-    def __init__(self):
+    def __init__(self, line_filter: LineFilter):
         self.diagnostics = {}
         self.requested_files = set()
+        self.line_filter = dict()
         self.cond = threading.Condition()
+        self.line_filter = line_filter
 
     def handle_publish_diagnostics(self, args):
         file = _uri_file(args["uri"])
         if file not in self.requested_files:
             return
+        diagnostics = self.line_filter.filter_diagnostics(file, args["diagnostics"])
         self.cond.acquire()
-        self.diagnostics[file] = args["diagnostics"]
+        self.diagnostics[file] = diagnostics
         self.cond.notify()
         self.cond.release()
 
@@ -175,6 +180,15 @@ def main_cli():
         help=f"On which severity of diagnostics this program should exit with a non-zero status. Candidates: {', '.join(DiagnosticCollector.SEVERITY_INT)}. [default: hint]",
     )
     parser.add_argument(
+        "--line-filter",
+        default=LineFilter(),
+        type=LineFilter.parse_line_filter,
+        help=(
+            "A JSON with a list of files and line ranges that will act as a filter for diagnostics."
+            " Compatible with clang-tidy --line-filter parameter format."
+        ),
+    )
+    parser.add_argument(
         "--tqdm", action="store_true", help="Show a progress bar (tqdm required)."
     )
     parser.add_argument(
@@ -246,7 +260,7 @@ def main_cli():
     pbar = None  # use to close progress bar if it exists
     signal.signal(signal.SIGINT, lambda sig, _: kill_child_process(sig, _, [p], pbar))
 
-    collector = DiagnosticCollector()
+    collector = DiagnosticCollector(args.line_filter)
 
     json_rpc_endpoint = JsonRpcEndpoint(p.stdin, p.stdout)
     lsp_endpoint = LspEndpoint(
