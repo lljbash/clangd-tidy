@@ -16,6 +16,7 @@ from .diagnostic_formatter import (
     FancyDiagnosticFormatter,
     GithubActionWorkflowCommandDiagnosticFormatter,
 )
+from .lines_filter import LineFilter
 from .lsp import ClangdAsync, RequestResponsePair
 from .lsp.messages import (
     Diagnostic,
@@ -166,6 +167,8 @@ def main_cli():
         tqdm=args.tqdm,
         max_pending_requests=args.jobs * 2,
     ).acquire_diagnostics()
+
+    file_diagnostics = args.line_filter.filter_all_diagnostics(file_diagnostics)
 
     formatter = (
         FancyDiagnosticFormatter(

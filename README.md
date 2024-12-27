@@ -56,7 +56,8 @@ pip install clangd-tidy
 
 ```
 usage: clangd-tidy [--allow-extensions ALLOW_EXTENSIONS]
-                   [--fail-on-severity SEVERITY] [-f] [-o OUTPUT] [--tqdm]
+                   [--fail-on-severity SEVERITY] [-f] [-o OUTPUT]
+                   [--line-filter LINE_FILTER] [--tqdm]
                    [--github] [--git-root GIT_ROOT] [-c] [--context CONTEXT]
                    [--color {auto,always,never}] [-v]
                    [-p COMPILE_COMMANDS_DIR] [-j JOBS]
@@ -85,6 +86,8 @@ check options:
 output options:
   -o OUTPUT, --output OUTPUT
                         Output file for diagnostics. [default: stdout]
+  --line-filter LINE_FILTER
+                        A JSON with a list of files and line ranges that will act as a filter for diagnostics. Compatible with clang-tidy --line-filter format.                   
   --tqdm                Show a progress bar (tqdm required).
   --github              Append workflow commands for GitHub Actions to output.
   --git-root GIT_ROOT   Specifies the root directory of the Git repository.

@@ -1,10 +1,11 @@
 import argparse
+import os
 import pathlib
 import sys
-import os
+
+from .lines_filter import LineFilter
 
 from .lsp.messages import DiagnosticSeverity
-
 from .version import __version__
 
 __all__ = ["SEVERITY_INT", "parse_args"]
@@ -75,6 +76,15 @@ def parse_args() -> argparse.Namespace:
         type=argparse.FileType("w"),
         default=sys.stdout,
         help="Output file for diagnostics. [default: stdout]",
+    )
+    output_group.add_argument(
+        "--line-filter",
+        default=LineFilter(),
+        type=LineFilter.parse_line_filter,
+        help=(
+            "A JSON with a list of files and line ranges that will act as a filter for diagnostics."
+            " Compatible with clang-tidy --line-filter parameter format."
+        ),
     )
     output_group.add_argument(
         "--tqdm", action="store_true", help="Show a progress bar (tqdm required)."
