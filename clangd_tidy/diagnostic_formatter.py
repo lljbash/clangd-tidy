@@ -1,7 +1,7 @@
-from abc import ABC, abstractmethod
 import os
 import pathlib
 import re
+from abc import ABC, abstractmethod
 from typing import Dict, Iterable, List, Optional
 
 from .lsp.messages import Diagnostic, DiagnosticSeverity
@@ -150,6 +150,10 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
             MAGENTA = "\033[95m"
             BOLD = "\033[1m"
             ENDC = "\033[0m"
+            START_LINK = "\033]8;;"
+            END_LINK = "\033\\"
+
+            colors_enabled = True
 
         class ColorSeqNoTty:
             ERROR = ""
@@ -161,6 +165,10 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
             MAGENTA = ""
             BOLD = ""
             ENDC = ""
+            START_LINK = ""
+            END_LINK = ""
+
+            colors_enabled = False
 
         def __init__(self, enable_color: bool):
             self.color_seq = self.ColorSeqTty if enable_color else self.ColorSeqNoTty
@@ -184,6 +192,18 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
 
         def format(self, message: str):
             return f"{self.color_seq.MAGENTA}{message}{self.color_seq.ENDC}"
+
+        def link(self, message: str, url: str | None):
+            if url is None:
+                return message
+
+            if not self.color_seq.colors_enabled:
+                return message
+
+            return (
+                f"{self.color_seq.START_LINK}{url}{self.color_seq.END_LINK}"
+                f"{message}{self.color_seq.START_LINK}{self.color_seq.END_LINK}"
+            )
 
     def __init__(self, extra_context: int, enable_color: bool):
         self._extra_context = extra_context
@@ -269,7 +289,12 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
 
         if diagnostic.code is None:
             return None
-        code = f"[{diagnostic.code}]"
+
+        code_url = None
+        if diagnostic.codeDescription:
+            code_url = diagnostic.codeDescription.href
+        format_code = self._colorizer.link(diagnostic.code, code_url)
+        code = f"[{format_code}]"
 
         severity = (
             self._colorized_severity(diagnostic.severity.value)

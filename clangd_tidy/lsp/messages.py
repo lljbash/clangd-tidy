@@ -117,12 +117,17 @@ class DiagnosticSeverity(Enum):
 
 
 @define
+class CodeDescription:
+    href: str
+
+
+@define
 class Diagnostic:
     range: Range
     message: str
     severity: Optional[DiagnosticSeverity] = None
     code: Any = None
-    codeDescription: Any = None
+    codeDescription: CodeDescription = None
     source: Optional[str] = None
     tags: Optional[List[Any]] = None
     relatedInformation: Optional[List[Any]] = None
