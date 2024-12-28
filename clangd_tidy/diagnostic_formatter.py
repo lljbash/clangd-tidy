@@ -1,8 +1,7 @@
-from abc import ABC, abstractmethod
 import os
 import re
+from abc import ABC, abstractmethod
 from typing import Any, Iterable, Optional, Tuple
-
 
 DiagnosticCollection = Iterable[Tuple[str, Any]]
 
@@ -96,6 +95,10 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
             GREEN = "\033[92m"
             BOLD = "\033[1m"
             ENDC = "\033[0m"
+            START_LINK = "\033]8;;"
+            END_LINK = "\033\\"
+
+            colors_enabled = True
 
         class ColorSeqNoTty:
             ERROR = ""
@@ -106,6 +109,10 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
             GREEN = ""
             BOLD = ""
             ENDC = ""
+            START_LINK = ""
+            END_LINK = ""
+
+            colors_enabled = False
 
         def __init__(self, enable_color: bool):
             self.color_seq = self.ColorSeqTty if enable_color else self.ColorSeqNoTty
@@ -126,6 +133,18 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
 
         def note(self, message: str):
             return f"{self.color_seq.NOTE}{message}{self.color_seq.ENDC}"
+
+        def link(self, message: str, url: str | None):
+            if url is None:
+                return message
+
+            if not self.color_seq.colors_enabled:
+                return message
+
+            return (
+                f"{self.color_seq.START_LINK}{url}{self.color_seq.END_LINK}"
+                f"{message}{self.color_seq.START_LINK}{self.color_seq.END_LINK}"
+            )
 
     def __init__(self, extra_context: int, enable_color: bool):
         self._extra_context = extra_context
@@ -209,7 +228,9 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
                 raw_code = diagnostic.get("code", None)
                 if not raw_code:
                     continue
-                code = f"[{raw_code}]" if raw_code else ""
+                code_url = diagnostic.get("codeDescription", {}).get("href", None)
+                format_code = self._colorizer.link(raw_code, code_url)
+                code = f"[{format_code}]" if format_code else ""
 
                 raw_severity = diagnostic.get("severity", None)
                 severity = (
