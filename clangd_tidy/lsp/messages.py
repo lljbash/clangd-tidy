@@ -14,6 +14,7 @@ class Message:
 class RequestMethod(Enum):
     INITIALIZE = "initialize"
     SHUTDOWN = "shutdown"
+    FORMATTING = "textDocument/formatting"
 
 
 @unique
@@ -38,7 +39,7 @@ class Params:
 class RequestMessage(Message):
     id: int
     method: RequestMethod
-    params: Params
+    params: dict = Factory(dict)
 
 
 @define
@@ -51,7 +52,7 @@ class ResponseError:
 @define(kw_only=True)
 class ResponseMessage(Message):
     id: int
-    result: Optional[dict] = None
+    result: Any = None
     error: Optional[ResponseError] = None
 
 
@@ -134,3 +135,19 @@ class PublishDiagnosticsParams(Params):
     uri: str
     diagnostics: List[Diagnostic]
     version: Optional[int] = None
+
+
+@define
+class WorkDoneProgressParams(Params):
+    workDoneToken: Any = None
+
+
+@define
+class TextDocumentIdentifier:
+    uri: str
+
+
+@define(kw_only=True)
+class DocumentFormattingParams(WorkDoneProgressParams):
+    textDocument: TextDocumentIdentifier
+    options: dict = Factory(dict)
