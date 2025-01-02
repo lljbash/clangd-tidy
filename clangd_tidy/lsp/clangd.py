@@ -7,11 +7,13 @@ from typing import Union
 from .client import ClientAsync, RequestResponsePair
 from .messages import (
     DidOpenTextDocumentParams,
+    DocumentFormattingParams,
     InitializeParams,
     LanguageId,
     LspNotificationMessage,
     NotificationMethod,
     RequestMethod,
+    TextDocumentIdentifier,
     TextDocumentItem,
     WorkspaceFolder,
 )
@@ -80,6 +82,15 @@ class ClangdAsync:
                     version=1,
                     text=path.read_text(),
                 )
+            ),
+        )
+
+    async def formatting(self, path: pathlib.Path) -> None:
+        assert path.is_file()
+        await self._client.request(
+            RequestMethod.FORMATTING,
+            DocumentFormattingParams(
+                textDocument=TextDocumentIdentifier(uri=path.as_uri())
             ),
         )
 

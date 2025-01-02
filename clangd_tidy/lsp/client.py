@@ -32,7 +32,9 @@ class ClientAsync:
 
     async def request(self, method: RequestMethod, params: Params = Params()) -> None:
         id = next(self._id)
-        message = RequestMessage(id=id, method=method, params=params)
+        message = RequestMessage(
+            id=id, method=method, params=cattrs.unstructure(params)
+        )
         self._requests[id] = message
         await self._rpc.send(cattrs.unstructure(message))
 

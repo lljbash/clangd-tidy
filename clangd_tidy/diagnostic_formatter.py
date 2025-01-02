@@ -1,14 +1,13 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 import os
 import pathlib
 import re
-from typing import Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 from .lsp.messages import Diagnostic, DiagnosticSeverity
 
 __all__ = [
-    "FileDiagnostics",
+    "DiagnosticCollection",
     "DiagnosticFormatter",
     "CompactDiagnosticFormatter",
     "FancyDiagnosticFormatter",
@@ -16,13 +15,7 @@ __all__ = [
 ]
 
 
-@dataclass
-class FileDiagnostics:
-    file: pathlib.Path
-    diagnostics: List[Diagnostic]
-
-
-DiagnosticCollection = Iterable[FileDiagnostics]
+DiagnosticCollection = Dict[pathlib.Path, List[Diagnostic]]
 
 
 class DiagnosticFormatter(ABC):
@@ -35,10 +28,9 @@ class DiagnosticFormatter(ABC):
 
     def format(self, diagnostic_collection: DiagnosticCollection) -> str:
         file_outputs: List[str] = []
-        for file_diagnostics in sorted(
-            diagnostic_collection, key=lambda d: d.file.as_posix()
+        for file, diagnostics in sorted(
+            diagnostic_collection.items(), key=lambda fd: fd[0].as_posix()
         ):
-            file, diagnostics = file_diagnostics.file, file_diagnostics.diagnostics
             diagnostic_outputs = [
                 o
                 for o in [
@@ -143,7 +135,7 @@ class GithubActionWorkflowCommandDiagnosticFormatter(DiagnosticFormatter):
     def _make_whole_output(self, file_outputs: Iterable[str]) -> str:
         head = "::group::{workflow commands}"
         tail = "::endgroup::"
-        return "\n".join([head, *file_outputs, tail])
+        return "\n".join(["", head, *file_outputs, tail])
 
 
 class FancyDiagnosticFormatter(DiagnosticFormatter):
@@ -155,6 +147,7 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
             HINT = "\033[94m"
             NOTE = "\033[90m"
             GREEN = "\033[92m"
+            MAGENTA = "\033[95m"
             BOLD = "\033[1m"
             ENDC = "\033[0m"
 
@@ -165,6 +158,7 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
             HINT = ""
             NOTE = ""
             GREEN = ""
+            MAGENTA = ""
             BOLD = ""
             ENDC = ""
 
@@ -187,6 +181,9 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
 
         def note(self, message: str):
             return f"{self.color_seq.NOTE}{message}{self.color_seq.ENDC}"
+
+        def format(self, message: str):
+            return f"{self.color_seq.MAGENTA}{message}{self.color_seq.ENDC}"
 
     def __init__(self, extra_context: int, enable_color: bool):
         self._extra_context = extra_context
@@ -241,7 +238,7 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
             indicator = self._colorizer.highlight(indicator)
             context += self._prepend_line_number(indicator, lino=None)
 
-        return context
+        return context.rstrip()
 
     @staticmethod
     def _diagnostic_message(
@@ -255,10 +252,17 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
     ) -> str:
         return f"{file}:{line_start + 1}:{col_start + 1}: {severity}: {message} {code}\n{context}"
 
+    def _formatting_message(self, file: str, message: str) -> str:
+        return self._colorizer.format(f"{file}: {message}")
+
     def _format_one_diagnostic(
         self, file: pathlib.Path, diagnostic: Diagnostic
     ) -> Optional[str]:
         rel_file = os.path.relpath(file)
+
+        if diagnostic.source == "clang-format":
+            return self._formatting_message(rel_file, diagnostic.message)
+
         message: str = diagnostic.message.replace(" (fix available)", "")
         message_list = [line for line in message.splitlines() if line.strip()]
         message, extra_messages = message_list[0], message_list[1:]
@@ -306,7 +310,7 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
         self, file: pathlib.Path, diagnostic_outputs: Iterable[str]
     ) -> str:
         del file
-        return "\n".join(diagnostic_outputs)
+        return "\n\n".join(diagnostic_outputs)
 
     def _make_whole_output(self, file_outputs: Iterable[str]) -> str:
-        return "\n".join(file_outputs)
+        return "\n\n".join(file_outputs)

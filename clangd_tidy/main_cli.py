@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import asyncio
-import importlib.util
 import pathlib
 import sys
 from typing import Collection, List, TextIO
@@ -13,15 +12,20 @@ from tqdm import tqdm
 from .args import parse_args, SEVERITY_INT
 from .diagnostic_formatter import (
     CompactDiagnosticFormatter,
+    DiagnosticCollection,
     FancyDiagnosticFormatter,
-    FileDiagnostics,
     GithubActionWorkflowCommandDiagnosticFormatter,
 )
 from .lsp import ClangdAsync, RequestResponsePair
 from .lsp.messages import (
+    Diagnostic,
+    DocumentFormattingParams,
     LspNotificationMessage,
     NotificationMethod,
+    Position,
     PublishDiagnosticsParams,
+    Range,
+    RequestMethod,
 )
 
 __all__ = ["main_cli"]
@@ -37,42 +41,73 @@ def _is_output_supports_color(output: TextIO) -> bool:
 
 class ClangdRunner:
     def __init__(
-        self, clangd: ClangdAsync, files: Collection[pathlib.Path], tqdm: bool
+        self,
+        clangd: ClangdAsync,
+        files: Collection[pathlib.Path],
+        tqdm: bool,
+        max_pending_requests: int,
     ):
         self._clangd = clangd
         self._files = files
         self._tqdm = tqdm
+        self._sem = asyncio.Semaphore(max_pending_requests)
 
-    def run(self) -> List[FileDiagnostics]:
+    def acquire_diagnostics(self) -> DiagnosticCollection:
         return asyncio.run(self._acquire_diagnostics())
 
     async def _request_diagnostics(self) -> None:
-        await asyncio.gather(*(self._clangd.did_open(file) for file in self._files))
+        for file in self._files:
+            await self._sem.acquire()
+            await self._clangd.did_open(file)
+            await self._sem.acquire()
+            await self._clangd.formatting(file)
 
-    async def _collect_diagnostics(self) -> List[FileDiagnostics]:
-        file_diagnostics: List[FileDiagnostics] = []
+    async def _collect_diagnostics(self) -> DiagnosticCollection:
+        diagnostics: DiagnosticCollection = {}
+        formatting_diagnostics: DiagnosticCollection = {}
         with tqdm(
             total=len(self._files),
             desc="Collecting diagnostics",
             disable=not self._tqdm,
         ) as pbar:
-            while len(file_diagnostics) < len(self._files):
+            while len(diagnostics) < len(self._files):
                 resp = await self._clangd.recv_response_or_notification()
                 if isinstance(resp, LspNotificationMessage):
                     if resp.method == NotificationMethod.PUBLISH_DIAGNOSTICS:
                         params = cattrs.structure(resp.params, PublishDiagnosticsParams)
                         file = _uri_to_path(params.uri)
-                        file_diagnostics.append(
-                            FileDiagnostics(file, params.diagnostics)
-                        )
+                        diagnostics[file] = params.diagnostics
                         tqdm.update(pbar)
-        return file_diagnostics
+                        self._sem.release()
+                else:
+                    assert resp.request.method == RequestMethod.FORMATTING
+                    assert resp.response.error is None, "Formatting failed"
+                    params = cattrs.structure(
+                        resp.request.params, DocumentFormattingParams
+                    )
+                    file = _uri_to_path(params.textDocument.uri)
+                    formatting_diagnostics[file] = (
+                        [
+                            Diagnostic(
+                                range=Range(start=Position(0, 0), end=Position(0, 0)),
+                                message="File does not conform to the formatting rules (run `clang-format` to fix)",
+                                source="clang-format",
+                            )
+                        ]
+                        if resp.response.result
+                        else []
+                    )
+        return {
+            file: formatting_diagnostics[file] + diagnostics[file]
+            for file in self._files
+        }
 
-    async def _acquire_diagnostics(self) -> List[FileDiagnostics]:
+    async def _acquire_diagnostics(self) -> DiagnosticCollection:
         await self._clangd.start()
         await self._clangd.initialize(pathlib.Path.cwd())
         init_resp = await self._clangd.recv_response_or_notification()
         assert isinstance(init_resp, RequestResponsePair)
+        assert init_resp.request.method == RequestMethod.INITIALIZE
         assert init_resp.response.error is None, "Initialization failed"
         await self._clangd.initialized()
         _, file_diagnostics = await asyncio.gather(
@@ -96,12 +131,13 @@ def main_cli():
         sys.exit(1)
 
     file_diagnostics = ClangdRunner(
-        ClangdAsync(
+        clangd=ClangdAsync(
             args.clangd_executable, args.compile_commands_dir, args.jobs, args.verbose
         ),
-        files,
-        args.tqdm,
-    ).run()
+        files=files,
+        tqdm=args.tqdm,
+        max_pending_requests=args.jobs * 2,
+    ).acquire_diagnostics()
 
     formatter = (
         FancyDiagnosticFormatter(
@@ -125,9 +161,13 @@ def main_cli():
         )
     if any(
         any(
-            d.severity and d.severity >= SEVERITY_INT[args.fail_on_severity]
-            for d in fd.diagnostics
+            (
+                diagostic.severity
+                and diagostic.severity >= SEVERITY_INT[args.fail_on_severity]
+            )
+            or diagostic.source == "clang-format"
+            for diagostic in diagnostics
         )
-        for fd in file_diagnostics
+        for diagnostics in file_diagnostics.values()
     ):
         exit(1)
