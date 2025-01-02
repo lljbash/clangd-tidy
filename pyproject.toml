@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "clangd-tidy"
 dynamic = ["version"]
-dependencies = ["tqdm"]
+dependencies = ["attrs", "cattrs", "tqdm"]
 requires-python = ">=3.8"
 authors = [{ name = "lljbash", email = "lljbash@gmail.com" }]
 description = "A faster alternative to clang-tidy"
