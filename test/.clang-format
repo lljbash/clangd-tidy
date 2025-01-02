@@ -1,0 +1,7 @@
+---
+Language: Cpp
+BasedOnStyle: Google
+BreakAfterAttributes: Leave
+CommentPragmas: '^ (IWYU pragma:|NOLINT(BEGIN|END|NEXTLINE)?(\(.+\))?:? )'
+DerivePointerAlignment: false
+InsertNewlineAtEOF: true

@@ -1,0 +1,4 @@
+class AA {
+ public:
+ public:
+};
