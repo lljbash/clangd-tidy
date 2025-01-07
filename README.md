@@ -15,6 +15,7 @@ Unfortunately, there seems to be no plan within LLVM to accelerate the standalon
 - clangd-tidy is significantly faster than clang-tidy (over 10x in my experience).
 - clangd-tidy can check header files individually, even if they are not included in the compilation database.
 - clangd-tidy groups diagnostics by files -- no more duplicated diagnostics from the same header!
+- clangd-tidy provides an optional code format checking feature, eliminating the need to run clang-format separately.
 - clangd-tidy supports [`.clangd` configuration files](https://clangd.llvm.org/config), offering features not supported by clang-tidy.
   - Example: Removing unknown compiler flags from the compilation database.
     ```yaml
@@ -41,7 +42,8 @@ Unfortunately, there seems to be no plan within LLVM to accelerate the standalon
 
 - [clangd](https://clangd.llvm.org/)
 - Python 3.8+ (may work on older versions, but not tested)
-- [tqdm](https://github.com/tqdm/tqdm) (optional)
+- [attrs](https://www.attrs.org/) and [cattrs](https://catt.rs/) (automatically installed if clangd-tidy is installed via pip)
+- [tqdm](https://github.com/tqdm/tqdm) (optional, required for progress bar support)
 
 ## Installation
 
@@ -52,46 +54,40 @@ pip install clangd-tidy
 ## Usage
 
 ```
-usage: clangd-tidy [-h] [-p COMPILE_COMMANDS_DIR] [-j JOBS] [-o OUTPUT]
-                   [--clangd-executable CLANGD_EXECUTABLE]
-                   [--allow-extensions ALLOW_EXTENSIONS]
-                   [--fail-on-severity SEVERITY] [--tqdm] [--github]
-                   [--git-root GIT_ROOT] [-c] [--context CONTEXT]
+usage: clangd-tidy [--allow-extensions ALLOW_EXTENSIONS]
+                   [--fail-on-severity SEVERITY] [-f] [-o OUTPUT] [--tqdm]
+                   [--github] [--git-root GIT_ROOT] [-c] [--context CONTEXT]
                    [--color {auto,always,never}] [-v]
+                   [-p COMPILE_COMMANDS_DIR] [-j JOBS]
+                   [--clangd-executable CLANGD_EXECUTABLE] [-V] [-h]
                    filename [filename ...]
 
 Run clangd with clang-tidy and output diagnostics. This aims to serve as a
 faster alternative to clang-tidy.
 
-positional arguments:
-  filename              Files to check. Files whose extensions are not in
-                        ALLOW_EXTENSIONS will be ignored.
-
-options:
-  -h, --help            show this help message and exit
-  -V, --version         show program's version number and exit
-  -p COMPILE_COMMANDS_DIR, --compile-commands-dir COMPILE_COMMANDS_DIR
-                        Specify a path to look for compile_commands.json. If
-                        the path is invalid, clangd will look in the current
-                        directory and parent paths of each source file.
-                        [default: build]
-  -j JOBS, --jobs JOBS  Number of async workers used by clangd. Background
-                        index also uses this many workers. [default: 1]
-  -o OUTPUT, --output OUTPUT
-                        Output file for diagnostics. [default: stdout]
-  --clangd-executable CLANGD_EXECUTABLE
-                        Path to clangd executable. [default: clangd]
+input options:
+  filename              Files to analyze. Ignores files with extensions not
+                        listed in ALLOW_EXTENSIONS.
   --allow-extensions ALLOW_EXTENSIONS
                         A comma-separated list of file extensions to allow.
                         [default: c,h,cpp,cc,cxx,hpp,hh,hxx,cu,cuh]
+
+check options:
   --fail-on-severity SEVERITY
-                        On which severity of diagnostics this program should
-                        exit with a non-zero status. Candidates: error, warn,
-                        info, hint. [default: hint]
+                        Specifies the diagnostic severity level at which the
+                        program exits with a non-zero status. Possible values:
+                        error, warn, info, hint. [default: hint]
+  -f, --format          Also check code formatting with clang-format. Exits
+                        with a non-zero status if any file violates formatting
+                        rules.
+
+output options:
+  -o OUTPUT, --output OUTPUT
+                        Output file for diagnostics. [default: stdout]
   --tqdm                Show a progress bar (tqdm required).
   --github              Append workflow commands for GitHub Actions to output.
-  --git-root GIT_ROOT   Root directory of the git repository. Only works with
-                        --github. [default: current directory]
+  --git-root GIT_ROOT   Specifies the root directory of the Git repository.
+                        Only works with --github. [default: current directory]
   -c, --compact         Print compact diagnostics (legacy).
   --context CONTEXT     Number of additional lines to display on both sides of
                         each diagnostic. This option is ineffective with
@@ -99,14 +95,29 @@ options:
   --color {auto,always,never}
                         Colorize the output. This option is ineffective with
                         --compact. [default: auto]
-  -v, --verbose         Show verbose output from clangd.
+  -v, --verbose         Stream verbose output from clangd to stderr.
+
+clangd options:
+  -p COMPILE_COMMANDS_DIR, --compile-commands-dir COMPILE_COMMANDS_DIR
+                        Specify a path to look for compile_commands.json. If
+                        the path is invalid, clangd will look in the current
+                        directory and parent paths of each source file.
+                        [default: build]
+  -j JOBS, --jobs JOBS  Number of async workers used by clangd. Background
+                        index also uses this many workers. [default: 1]
+  --clangd-executable CLANGD_EXECUTABLE
+                        Clangd executable. [default: clangd]
+
+generic options:
+  -V, --version         Show program's version number and exit.
+  -h, --help            Show this help message and exit.
 
 Find more information on https://github.com/lljbash/clangd-tidy.
 ```
 
 ## Acknowledgement
 
-Special thanks to [@yeger00](https://github.com/yeger00) for his [pylspclient](https://github.com/yeger00/pylspclient).
+Special thanks to [@yeger00](https://github.com/yeger00) for his [pylspclient](https://github.com/yeger00/pylspclient), which inspired earlier versions of this project.
 
 A big shoutout to [clangd](https://clangd.llvm.org/) and [clang-tidy](https://clang.llvm.org/extra/clang-tidy/) for their great work!
 
