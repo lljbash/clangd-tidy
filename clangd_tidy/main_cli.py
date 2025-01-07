@@ -4,10 +4,10 @@ import asyncio
 import pathlib
 import sys
 from typing import Collection, List, TextIO
+from unittest.mock import MagicMock
 from urllib.parse import unquote, urlparse
 
 import cattrs
-from tqdm import tqdm
 
 from .args import parse_args, SEVERITY_INT
 from .diagnostic_formatter import (
@@ -37,6 +37,18 @@ def _uri_to_path(uri: str) -> pathlib.Path:
 
 def _is_output_supports_color(output: TextIO) -> bool:
     return hasattr(output, "isatty") and output.isatty()
+
+
+def _try_import_tqdm():
+    try:
+        from tqdm import tqdm  # type: ignore
+    except ImportError:
+        print(
+            "tqdm is not installed. The progress bar feature is disabled.",
+            file=sys.stderr,
+        )
+        tqdm = MagicMock()
+    return tqdm
 
 
 class ClangdRunner:
@@ -72,6 +84,7 @@ class ClangdRunner:
             {} if self._run_format else {file: [] for file in self._files}
         )
         nfiles = len(self._files)
+        tqdm = _try_import_tqdm()
         with tqdm(
             total=nfiles,
             desc="Collecting diagnostics",
