@@ -39,16 +39,18 @@ def _is_output_supports_color(output: TextIO) -> bool:
     return hasattr(output, "isatty") and output.isatty()
 
 
-def _try_import_tqdm():
-    try:
-        from tqdm import tqdm  # type: ignore
-    except ImportError:
-        print(
-            "tqdm is not installed. The progress bar feature is disabled.",
-            file=sys.stderr,
-        )
-        tqdm = MagicMock()
-    return tqdm
+def _try_import_tqdm(enabled: bool):
+    if enabled:
+        try:
+            from tqdm import tqdm  # type: ignore
+
+            return tqdm
+        except ImportError:
+            print(
+                "tqdm is not installed. The progress bar feature is disabled.",
+                file=sys.stderr,
+            )
+    return MagicMock()
 
 
 class ClangdRunner:
@@ -84,11 +86,10 @@ class ClangdRunner:
             {} if self._run_format else {file: [] for file in self._files}
         )
         nfiles = len(self._files)
-        tqdm = _try_import_tqdm()
+        tqdm = _try_import_tqdm(self._tqdm)
         with tqdm(
             total=nfiles,
             desc="Collecting diagnostics",
-            disable=not self._tqdm,
         ) as pbar:
             while len(diagnostics) < nfiles or len(formatting_diagnostics) < nfiles:
                 resp = await self._clangd.recv_response_or_notification()
@@ -96,9 +97,10 @@ class ClangdRunner:
                     if resp.method == NotificationMethod.PUBLISH_DIAGNOSTICS:
                         params = cattrs.structure(resp.params, PublishDiagnosticsParams)
                         file = _uri_to_path(params.uri)
-                        diagnostics[file] = params.diagnostics
-                        tqdm.update(pbar)
-                        self._sem.release()
+                        if file in self._files:
+                            diagnostics[file] = params.diagnostics
+                            tqdm.update(pbar)
+                            self._sem.release()
                 else:
                     assert resp.request.method == RequestMethod.FORMATTING
                     assert resp.response.error is None, "Formatting failed"
