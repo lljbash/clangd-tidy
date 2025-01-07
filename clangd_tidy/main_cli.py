@@ -8,14 +8,13 @@ import sys
 import threading
 from typing import IO, Set, TextIO
 
-from clangd_tidy.lines_filter import LineFilter
-
 from .diagnostic_formatter import (
     CompactDiagnosticFormatter,
     DiagnosticFormatter,
     FancyDiagnosticFormatter,
     GithubActionWorkflowCommandDiagnosticFormatter,
 )
+from .lines_filter import LineFilter
 from .pylspclient.json_rpc_endpoint import JsonRpcEndpoint
 from .pylspclient.lsp_client import LspClient
 from .pylspclient.lsp_endpoint import LspEndpoint
@@ -84,7 +83,6 @@ class DiagnosticCollector:
     def __init__(self, line_filter: LineFilter):
         self.diagnostics = {}
         self.requested_files = set()
-        self.line_filter = dict()
         self.cond = threading.Condition()
         self.line_filter = line_filter
 
