@@ -33,5 +33,4 @@ write_to = "clangd_tidy/_dist_ver.py"
 
 [tool.black]
 include = '\.pyi?$'
-extend-exclude = 'pylspclient'
 required-version = "24"
