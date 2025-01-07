@@ -44,33 +44,40 @@ class ClangdRunner:
         self,
         clangd: ClangdAsync,
         files: Collection[pathlib.Path],
+        run_format: bool,
         tqdm: bool,
         max_pending_requests: int,
     ):
         self._clangd = clangd
         self._files = files
+        self._run_format = run_format
         self._tqdm = tqdm
-        self._sem = asyncio.Semaphore(max_pending_requests)
+        self._max_pending_requests = max_pending_requests
 
     def acquire_diagnostics(self) -> DiagnosticCollection:
         return asyncio.run(self._acquire_diagnostics())
 
     async def _request_diagnostics(self) -> None:
+        self._sem = asyncio.Semaphore(self._max_pending_requests)
         for file in self._files:
             await self._sem.acquire()
             await self._clangd.did_open(file)
-            await self._sem.acquire()
-            await self._clangd.formatting(file)
+            if self._run_format:
+                await self._sem.acquire()
+                await self._clangd.formatting(file)
 
     async def _collect_diagnostics(self) -> DiagnosticCollection:
         diagnostics: DiagnosticCollection = {}
-        formatting_diagnostics: DiagnosticCollection = {}
+        formatting_diagnostics: DiagnosticCollection = (
+            {} if self._run_format else {file: [] for file in self._files}
+        )
+        nfiles = len(self._files)
         with tqdm(
-            total=len(self._files),
+            total=nfiles,
             desc="Collecting diagnostics",
             disable=not self._tqdm,
         ) as pbar:
-            while len(diagnostics) < len(self._files):
+            while len(diagnostics) < nfiles or len(formatting_diagnostics) < nfiles:
                 resp = await self._clangd.recv_response_or_notification()
                 if isinstance(resp, LspNotificationMessage):
                     if resp.method == NotificationMethod.PUBLISH_DIAGNOSTICS:
@@ -97,6 +104,7 @@ class ClangdRunner:
                         if resp.response.result
                         else []
                     )
+                    self._sem.release()
         return {
             file: formatting_diagnostics[file] + diagnostics[file]
             for file in self._files
@@ -135,6 +143,7 @@ def main_cli():
             args.clangd_executable, args.compile_commands_dir, args.jobs, args.verbose
         ),
         files=files,
+        run_format=args.format,
         tqdm=args.tqdm,
         max_pending_requests=args.jobs * 2,
     ).acquire_diagnostics()

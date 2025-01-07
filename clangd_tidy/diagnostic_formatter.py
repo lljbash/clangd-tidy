@@ -300,7 +300,7 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
                 rel_file, line, line, col, col + 1, extra_context=0
             )
             note = self._colorizer.note("Note")
-            fancy_output += self._diagnostic_message(
+            fancy_output += "\n" + self._diagnostic_message(
                 rel_file, line, col, note, extra_message, "", context
             )
 
