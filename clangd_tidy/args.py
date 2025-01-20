@@ -4,6 +4,7 @@ import sys
 import os
 
 from .lsp.messages import DiagnosticSeverity
+from .lines_filter import LineFilter
 
 from .version import __version__
 
@@ -112,6 +113,15 @@ def parse_args() -> argparse.Namespace:
         "--verbose",
         action="store_true",
         help="Stream verbose output from clangd to stderr.",
+    )
+    output_group.add_argument(
+        "--line-filter",
+        default=LineFilter(),
+        type=LineFilter.parse_line_filter,
+        help=(
+            "A JSON with a list of files and line ranges that will act as a filter for diagnostics."
+            " Compatible with clang-tidy --line-filter parameter format."
+        ),
     )
 
     clangd_group = parser.add_argument_group("clangd options")

@@ -9,6 +9,7 @@ from urllib.parse import unquote, urlparse
 
 import cattrs
 
+from .lines_filter import LineFilter
 from .args import parse_args, SEVERITY_INT
 from .diagnostic_formatter import (
     CompactDiagnosticFormatter,
@@ -61,12 +62,14 @@ class ClangdRunner:
         run_format: bool,
         tqdm: bool,
         max_pending_requests: int,
+        line_filter: LineFilter,
     ):
         self._clangd = clangd
         self._files = files
         self._run_format = run_format
         self._tqdm = tqdm
         self._max_pending_requests = max_pending_requests
+        self._line_filter = line_filter
 
     def acquire_diagnostics(self) -> DiagnosticCollection:
         return asyncio.run(self._acquire_diagnostics())
@@ -98,7 +101,9 @@ class ClangdRunner:
                         params = cattrs.structure(resp.params, PublishDiagnosticsParams)
                         file = _uri_to_path(params.uri)
                         if file in self._files:
-                            diagnostics[file] = params.diagnostics
+                            diagnostics[file] = self._line_filter.filter_diagnostics(
+                                str(file), params.diagnostics
+                            )
                             tqdm.update(pbar)
                             self._sem.release()
                 else:
@@ -108,16 +113,21 @@ class ClangdRunner:
                         resp.request.params, DocumentFormattingParams
                     )
                     file = _uri_to_path(params.textDocument.uri)
-                    formatting_diagnostics[file] = (
-                        [
-                            Diagnostic(
-                                range=Range(start=Position(0, 0), end=Position(0, 0)),
-                                message="File does not conform to the formatting rules (run `clang-format` to fix)",
-                                source="clang-format",
-                            )
-                        ]
-                        if resp.response.result
-                        else []
+                    formatting_diagnostics[file] = self._line_filter.filter_diagnostics(
+                        str(file),
+                        (
+                            [
+                                Diagnostic(
+                                    range=Range(
+                                        start=Position(0, 0), end=Position(0, 0)
+                                    ),
+                                    message="File does not conform to the formatting rules (run `clang-format` to fix)",
+                                    source="clang-format",
+                                )
+                            ]
+                            if resp.response.result
+                            else []
+                        ),
                     )
                     self._sem.release()
         return {
@@ -161,6 +171,7 @@ def main_cli():
         run_format=args.format,
         tqdm=args.tqdm,
         max_pending_requests=args.jobs * 2,
+        line_filter=args.line_filter,
     ).acquire_diagnostics()
 
     formatter = (
