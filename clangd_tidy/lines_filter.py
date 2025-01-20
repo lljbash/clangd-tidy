@@ -3,6 +3,7 @@ import json
 from dataclasses import dataclass, field
 from .lsp.messages import Diagnostic
 
+
 @dataclass
 class FileLineFilter:
     """
@@ -60,7 +61,9 @@ class LineFilter:
 
         return False
 
-    def filter_diagnostics(self, file: str, diagnostics: list[Diagnostic]) -> list[Diagnostic]:
+    def filter_diagnostics(
+        self, file: str, diagnostics: list[Diagnostic]
+    ) -> list[Diagnostic]:
         def allow_diagnostic(diagnostic: Diagnostic) -> bool:
             return self.allows(
                 file,
