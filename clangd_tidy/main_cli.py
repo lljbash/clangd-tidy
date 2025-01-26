@@ -186,11 +186,11 @@ def main_cli():
     if any(
         any(
             (
-                diagostic.severity
-                and diagostic.severity >= SEVERITY_INT[args.fail_on_severity]
+                diagnostic.severity
+                and diagnostic.severity >= SEVERITY_INT[args.fail_on_severity]
             )
-            or diagostic.source == "clang-format"
-            for diagostic in diagnostics
+            or diagnostic.source == "clang-format"
+            for diagnostic in diagnostics
         )
         for diagnostics in file_diagnostics.values()
     ):
