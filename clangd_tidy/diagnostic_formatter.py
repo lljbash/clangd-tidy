@@ -1,7 +1,7 @@
-from abc import ABC, abstractmethod
 import os
 import pathlib
 import re
+from abc import ABC, abstractmethod
 from typing import Dict, Iterable, List, Optional
 
 from .lsp.messages import Diagnostic, DiagnosticSeverity
@@ -150,6 +150,8 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
             MAGENTA = "\033[95m"
             BOLD = "\033[1m"
             ENDC = "\033[0m"
+            START_LINK = "\033]8;;"
+            END_LINK = "\033\\"
 
         class ColorSeqNoTty:
             ERROR = ""
@@ -163,27 +165,35 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
             ENDC = ""
 
         def __init__(self, enable_color: bool):
-            self.color_seq = self.ColorSeqTty if enable_color else self.ColorSeqNoTty
+            self._color_seq = self.ColorSeqTty if enable_color else self.ColorSeqNoTty
 
         def per_severity(self, severity: int, message: str):
             if severity == 1:
-                return f"{self.color_seq.ERROR}{message}{self.color_seq.ENDC}"
+                return f"{self._color_seq.ERROR}{message}{self._color_seq.ENDC}"
             if severity == 2:
-                return f"{self.color_seq.WARNING}{message}{self.color_seq.ENDC}"
+                return f"{self._color_seq.WARNING}{message}{self._color_seq.ENDC}"
             if severity == 3:
-                return f"{self.color_seq.INFO}{message}{self.color_seq.ENDC}"
+                return f"{self._color_seq.INFO}{message}{self._color_seq.ENDC}"
             if severity == 4:
-                return f"{self.color_seq.HINT}{message}{self.color_seq.ENDC}"
+                return f"{self._color_seq.HINT}{message}{self._color_seq.ENDC}"
             return message
 
         def highlight(self, message: str):
-            return f"{self.color_seq.GREEN}{message}{self.color_seq.ENDC}"
+            return f"{self._color_seq.GREEN}{message}{self._color_seq.ENDC}"
 
         def note(self, message: str):
-            return f"{self.color_seq.NOTE}{message}{self.color_seq.ENDC}"
+            return f"{self._color_seq.NOTE}{message}{self._color_seq.ENDC}"
 
         def format(self, message: str):
-            return f"{self.color_seq.MAGENTA}{message}{self.color_seq.ENDC}"
+            return f"{self._color_seq.MAGENTA}{message}{self._color_seq.ENDC}"
+
+        def link(self, message: str, url: str):
+            if not url or self._color_seq is not self.ColorSeqTty:
+                return message
+            return (
+                f"{self._color_seq.START_LINK}{url}{self._color_seq.END_LINK}"
+                f"{message}{self._color_seq.START_LINK}{self._color_seq.END_LINK}"
+            )
 
     def __init__(self, extra_context: int, enable_color: bool):
         self._extra_context = extra_context
@@ -269,7 +279,9 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
 
         if diagnostic.code is None:
             return None
-        code = f"[{diagnostic.code}]"
+
+        code_url = diagnostic.codeDescription.href if diagnostic.codeDescription else ""
+        code = f"[{self._colorizer.link(diagnostic.code, code_url)}]"
 
         severity = (
             self._colorized_severity(diagnostic.severity.value)

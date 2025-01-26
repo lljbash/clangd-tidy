@@ -30,6 +30,7 @@ Unfortunately, there seems to be no plan within LLVM to accelerate the standalon
       # Require clangd-17
       MissingIncludes: Strict
     ```
+- Hyperlinks on diagnostic check names in supported terminals.
 - Refer to [Usage](#usage) for more features.
 
 **Cons:**
@@ -121,6 +122,8 @@ Special thanks to [@yeger00](https://github.com/yeger00) for his [pylspclient](h
 
 A big shoutout to [clangd](https://clangd.llvm.org/) and [clang-tidy](https://clang.llvm.org/extra/clang-tidy/) for their great work!
 
-Claps to [@ArchieAtkinson](https://github.com/ArchieAtkinson) for his artistic flair in the fancy diagnostic formatter.
+Claps to
+- [@ArchieAtkinson](https://github.com/ArchieAtkinson) for his artistic flair in the fancy diagnostic formatter.
+- [@jmpfar](https://github.com/jmpfar) for his contribution to hyperlink support.
 
 Contributions are welcome! Feel free to open an issue or a pull request.
