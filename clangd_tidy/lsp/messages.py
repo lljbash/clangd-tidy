@@ -127,7 +127,7 @@ class Diagnostic:
     message: str
     severity: Optional[DiagnosticSeverity] = None
     code: Any = None
-    codeDescription: CodeDescription = None
+    codeDescription: Optional[CodeDescription] = None
     source: Optional[str] = None
     tags: Optional[List[Any]] = None
     relatedInformation: Optional[List[Any]] = None
