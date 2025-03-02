@@ -168,6 +168,11 @@ def main_cli():
         help=f"A comma-separated list of file extensions to allow. [default: {','.join(DEFAULT_ALLOW_EXTENSIONS)}]",
     )
     parser.add_argument(
+        "--query-driver",
+        default="",
+        help="Comma separated list of globs for -listing gcc-compatible drivers that are safe to execute. Drivers matching any of these globs will be used to extract system includes. e.g. /usr/bin/**/clang-*,/path/to/repo/**/g++-*",
+    )
+    parser.add_argument(
         "--fail-on-severity",
         metavar="SEVERITY",
         choices=DiagnosticCollector.SEVERITY_INT.keys(),
@@ -226,6 +231,7 @@ def main_cli():
         f"{args.clangd_executable}",
         f"--compile-commands-dir={args.compile_commands_dir}",
         "--clang-tidy",
+        f"--query-driver={args.query_driver}",
         f"-j={args.jobs}",
         "--pch-storage=memory",
         "--enable-config",
