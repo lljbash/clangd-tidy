@@ -33,4 +33,4 @@ write_to = "clangd_tidy/_dist_ver.py"
 
 [tool.black]
 include = '\.pyi?$'
-required-version = "24"
+required-version = "25"
