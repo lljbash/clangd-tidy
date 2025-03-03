@@ -108,6 +108,12 @@ clangd options:
                         index also uses this many workers. [default: 1]
   --clangd-executable CLANGD_EXECUTABLE
                         Clangd executable. [default: clangd]
+  --query-driver QUERY_DRIVER
+                        Comma separated list of globs for white-listing gcc-
+                        compatible drivers that are safe to execute. Drivers
+                        matching any of these globs will be used to extract
+                        system includes. e.g.
+                        `/usr/bin/**/clang-*,/path/to/repo/**/g++-*`.
 
 generic options:
   -V, --version         Show program's version number and exit.
