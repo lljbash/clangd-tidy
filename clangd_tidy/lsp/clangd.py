@@ -26,9 +26,11 @@ class ClangdAsync:
     def __init__(
         self,
         clangd_executable: str,
+        *,
         compile_commands_dir: str,
         jobs: int,
         verbose: bool,
+        query_driver: str,
     ):
         self._clangd_cmd = [
             clangd_executable,
@@ -38,6 +40,8 @@ class ClangdAsync:
             "--pch-storage=memory",
             "--enable-config",
         ]
+        if query_driver:
+            self._clangd_cmd.append(f"--query-driver={query_driver}")
         self._stderr = sys.stderr if verbose else open(os.devnull, "w")
 
     async def start(self) -> None:
@@ -105,6 +109,6 @@ class ClangdAsync:
         # HACK: prevent RuntimeError('Event loop is closed') before Python 3.11
         # see https://github.com/python/cpython/issues/88050
         if sys.version_info < (3, 11):
-            self._process._transport.close() # type: ignore
+            self._process._transport.close()  # type: ignore
 
         self._stderr.close()
