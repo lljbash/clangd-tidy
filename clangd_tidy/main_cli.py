@@ -9,7 +9,7 @@ from urllib.parse import unquote, urlparse
 
 import cattrs
 
-from .args import parse_args, SEVERITY_INT
+from .args import SEVERITY_INT, parse_args
 from .diagnostic_formatter import (
     CompactDiagnosticFormatter,
     DiagnosticCollection,
@@ -155,7 +155,11 @@ def main_cli():
 
     file_diagnostics = ClangdRunner(
         clangd=ClangdAsync(
-            args.clangd_executable, args.compile_commands_dir, args.jobs, args.verbose
+            args.clangd_executable,
+            compile_commands_dir=args.compile_commands_dir,
+            jobs=args.jobs,
+            verbose=args.verbose,
+            query_driver=args.query_driver,
         ),
         files=files,
         run_format=args.format,

@@ -133,6 +133,11 @@ def parse_args() -> argparse.Namespace:
         default="clangd",
         help="Clangd executable. [default: clangd]",
     )
+    clangd_group.add_argument(
+        "--query-driver",
+        default="",
+        help="Comma separated list of globs for white-listing gcc-compatible drivers that are safe to execute. Drivers matching any of these globs will be used to extract system includes. e.g. `/usr/bin/**/clang-*,/path/to/repo/**/g++-*`.",
+    )
 
     misc_group = parser.add_argument_group("generic options")
     misc_group.add_argument(
