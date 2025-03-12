@@ -94,7 +94,7 @@ class ClangdAsync:
         await self._client.request(
             RequestMethod.FORMATTING,
             DocumentFormattingParams(
-                textDocument=TextDocumentIdentifier(uri=path.as_uri())
+                textDocument=TextDocumentIdentifier(uri=path.as_uri()), options={}
             ),
         )
 

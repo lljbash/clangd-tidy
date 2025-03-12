@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "clangd-tidy"
 dynamic = ["version"]
-dependencies = ["attrs", "cattrs"]
+dependencies = ["attrs", "cattrs", "typing-extensions"]
 requires-python = ">=3.8"
 authors = [{ name = "lljbash", email = "lljbash@gmail.com" }]
 description = "A faster alternative to clang-tidy"
@@ -34,3 +34,9 @@ write_to = "clangd_tidy/_dist_ver.py"
 [tool.black]
 include = '\.pyi?$'
 required-version = "25"
+
+[tool.basedpyright]
+include = ["clangd_tidy"]
+pythonVersion = "3.8"
+pythonPlatform = "Linux"
+typeCheckingMode = "strict"
