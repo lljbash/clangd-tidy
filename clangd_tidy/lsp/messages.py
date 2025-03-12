@@ -1,8 +1,9 @@
 from enum import Enum, unique
 from functools import total_ordering
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from attrs import Factory, define
+from typing_extensions import Self
 
 
 @define
@@ -39,14 +40,14 @@ class Params:
 class RequestMessage(Message):
     id: int
     method: RequestMethod
-    params: dict = Factory(dict)
+    params: Dict[str, Any] = Factory(dict)
 
 
 @define
 class ResponseError:
     code: int
     message: str
-    data: Optional[dict] = None
+    data: Optional[Dict[str, Any]] = None
 
 
 @define(kw_only=True)
@@ -59,7 +60,7 @@ class ResponseMessage(Message):
 @define(kw_only=True)
 class LspNotificationMessage(Message):
     method: NotificationMethod
-    params: dict = Factory(dict)
+    params: Dict[str, Any] = Factory(dict)
 
 
 @define
@@ -110,7 +111,7 @@ class DiagnosticSeverity(Enum):
     INFORMATION = 3
     HINT = 4
 
-    def __lt__(self, other) -> bool:
+    def __lt__(self, other: Self) -> bool:
         if self.__class__ is other.__class__:
             return self.value < other.value
         return NotImplemented
@@ -155,4 +156,4 @@ class TextDocumentIdentifier:
 @define(kw_only=True)
 class DocumentFormattingParams(WorkDoneProgressParams):
     textDocument: TextDocumentIdentifier
-    options: dict = Factory(dict)
+    options: Dict[str, Any] = Factory(dict)

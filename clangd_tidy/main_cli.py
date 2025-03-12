@@ -99,7 +99,7 @@ class ClangdRunner:
                         file = _uri_to_path(params.uri)
                         if file in self._files:
                             diagnostics[file] = params.diagnostics
-                            tqdm.update(pbar)
+                            tqdm.update(pbar)  # type: ignore
                             self._sem.release()
                 else:
                     assert resp.request.method == RequestMethod.FORMATTING
