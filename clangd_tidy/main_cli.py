@@ -3,7 +3,7 @@
 import asyncio
 import pathlib
 import sys
-from typing import Collection, List, TextIO
+from typing import Collection, List, Optional, TextIO
 from unittest.mock import MagicMock
 from urllib.parse import unquote, urlparse
 
@@ -16,6 +16,7 @@ from .diagnostic_formatter import (
     FancyDiagnosticFormatter,
     GithubActionWorkflowCommandDiagnosticFormatter,
 )
+from .line_filter import LineFilter
 from .lsp import ClangdAsync, RequestResponsePair
 from .lsp.messages import (
     Diagnostic,
@@ -166,6 +167,10 @@ def main_cli():
         tqdm=args.tqdm,
         max_pending_requests=args.jobs * 2,
     ).acquire_diagnostics()
+
+    line_filter: Optional[LineFilter] = args.line_filter
+    if line_filter is not None:
+        file_diagnostics = line_filter.filter_all_diagnostics(file_diagnostics)
 
     formatter = (
         FancyDiagnosticFormatter(

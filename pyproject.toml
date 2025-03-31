@@ -23,6 +23,7 @@ classifiers = [
 
 [project.scripts]
 clangd-tidy = "clangd_tidy:main_cli"
+clangd-tidy-diff = "clangd_tidy:clang_tidy_diff"
 
 [project.urls]
 "Homepage" = "https://github.com/lljbash/clangd-tidy"
