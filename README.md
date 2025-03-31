@@ -54,14 +54,17 @@ pip install clangd-tidy
 
 ## Usage
 
+### clang-tidy
+
 ```
 usage: clangd-tidy [--allow-extensions ALLOW_EXTENSIONS]
                    [--fail-on-severity SEVERITY] [-f] [-o OUTPUT]
-                   [--line-filter LINE_FILTER] [--tqdm]
-                   [--github] [--git-root GIT_ROOT] [-c] [--context CONTEXT]
+                   [--line-filter LINE_FILTER] [--tqdm] [--github]
+                   [--git-root GIT_ROOT] [-c] [--context CONTEXT]
                    [--color {auto,always,never}] [-v]
                    [-p COMPILE_COMMANDS_DIR] [-j JOBS]
-                   [--clangd-executable CLANGD_EXECUTABLE] [-V] [-h]
+                   [--clangd-executable CLANGD_EXECUTABLE]
+                   [--query-driver QUERY_DRIVER] [-V] [-h]
                    filename [filename ...]
 
 Run clangd with clang-tidy and output diagnostics. This aims to serve as a
@@ -87,7 +90,9 @@ output options:
   -o OUTPUT, --output OUTPUT
                         Output file for diagnostics. [default: stdout]
   --line-filter LINE_FILTER
-                        A JSON with a list of files and line ranges that will act as a filter for diagnostics. Compatible with clang-tidy --line-filter format.                   
+                        A JSON with a list of files and line ranges that will
+                        act as a filter for diagnostics. Compatible with
+                        clang-tidy --line-filter parameter format.
   --tqdm                Show a progress bar (tqdm required).
   --github              Append workflow commands for GitHub Actions to output.
   --git-root GIT_ROOT   Specifies the root directory of the Git repository.
@@ -125,6 +130,34 @@ generic options:
 Find more information on https://github.com/lljbash/clangd-tidy.
 ```
 
+### clangd-tidy-diff
+
+```
+usage: clangd-tidy-diff [-h] [-V] [-p COMPILE_COMMANDS_DIR]
+                        [--pass-arg PASS_ARG]
+
+Run clangd-tidy on modified files, reporting diagnostics only for changed lines.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -V, --version         show program's version number and exit
+  -p COMPILE_COMMANDS_DIR, --compile-commands-dir COMPILE_COMMANDS_DIR
+                        Specify a path to look for compile_commands.json. If
+                        the path is invalid, clangd-tidy will look in the
+                        current directory and parent paths of each source
+                        file.
+  --pass-arg PASS_ARG   Pass this argument to clangd-tidy (can be used
+                        multiple times)
+
+Receives a diff on stdin and runs clangd-tidy only on the changed lines.
+This is useful to slowly onboard a codebase to linting or to find regressions.
+Inspired by clang-tidy-diff.py from the LLVM project.
+
+Example usage with git:
+    git diff -U0 HEAD^^..HEAD | clangd-tidy-diff -p my/build
+
+```
+
 ## Acknowledgement
 
 Special thanks to [@yeger00](https://github.com/yeger00) for his [pylspclient](https://github.com/yeger00/pylspclient), which inspired earlier versions of this project.
@@ -133,6 +166,6 @@ A big shoutout to [clangd](https://clangd.llvm.org/) and [clang-tidy](https://cl
 
 Claps to
 - [@ArchieAtkinson](https://github.com/ArchieAtkinson) for his artistic flair in the fancy diagnostic formatter.
-- [@jmpfar](https://github.com/jmpfar) for his contribution to hyperlink support.
+- [@jmpfar](https://github.com/jmpfar) for his contribution to hyperlink support and `clangd-tidy-diff`.
 
 Contributions are welcome! Feel free to open an issue or a pull request.

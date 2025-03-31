@@ -52,7 +52,7 @@ def _parse_gitdiff(
 
 def clang_tidy_diff() -> NoReturn:
     parser = argparse.ArgumentParser(
-        description="Runs clangd-tidy against modified files, and returns diagnostics only on changed lines.",
+        description="Run clangd-tidy on modified files, reporting diagnostics only for changed lines.",
         epilog=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
