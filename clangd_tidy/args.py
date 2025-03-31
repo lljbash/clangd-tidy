@@ -1,10 +1,12 @@
 import argparse
+import json
 import os
 import pathlib
 import sys
 
-from .lines_filter import LineFilter
+import cattrs
 
+from .line_filter import LineFilter
 from .lsp.messages import DiagnosticSeverity
 from .version import __version__
 
@@ -79,8 +81,7 @@ def parse_args() -> argparse.Namespace:
     )
     output_group.add_argument(
         "--line-filter",
-        default=LineFilter(),
-        type=LineFilter.parse_line_filter,
+        type=lambda x: cattrs.structure(json.loads(x), LineFilter),
         help=(
             "A JSON with a list of files and line ranges that will act as a filter for diagnostics."
             " Compatible with clang-tidy --line-filter parameter format."

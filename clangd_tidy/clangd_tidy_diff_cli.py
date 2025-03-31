@@ -12,17 +12,49 @@ import json
 import re
 import subprocess
 import sys
+from pathlib import Path
+from typing import Callable, List, NoReturn, Optional, TextIO, Union
 
+import cattrs
+
+from .line_filter import FileLineFilter, LineFilter, LineRange
 from .version import __version__
 
-ADDED_FILE_NAME_REGEX = re.compile(r'^\+\+\+ "?(?P<prefix>.*?/)(?P<file>[^\s"]*)')
-ADDED_LINES_REGEX = re.compile(r"^@@.*\+(?P<line>\d+)(,(?P<count>\d+))?")
+
+def _parse_gitdiff(
+    text: TextIO, add_file_range_callback: Callable[[Path, int, int], None]
+) -> None:
+    """
+    Parses a git diff and calls add_file_range_callback for each added line range.
+    """
+    ADDED_FILE_NAME_REGEX = re.compile(r'^\+\+\+ "?(?P<prefix>.*?/)(?P<file>[^\s"]*)')
+    ADDED_LINES_REGEX = re.compile(r"^@@.*\+(?P<line>\d+)(,(?P<count>\d+))?")
+
+    last_file: Optional[str] = None
+    for line in text:
+        m = re.search(ADDED_FILE_NAME_REGEX, line)
+        if m is not None:
+            last_file = m.group("file")
+        if last_file is None:
+            continue
+
+        m = re.search(ADDED_LINES_REGEX, line)
+        if m is None:
+            continue
+        start_line = int(m.group("line"))
+        line_count = int(m.group("count")) if m.group("count") else 1
+        if line_count == 0:
+            continue
+        end_line = start_line + line_count - 1
+
+        add_file_range_callback(Path(last_file), start_line, end_line)
 
 
-def clang_tidy_diff():
+def clang_tidy_diff() -> NoReturn:
     parser = argparse.ArgumentParser(
-        description="Runs clangd-tidy against modified files,"
-        " and returns diagnostics only on changed lines."
+        description="Runs clangd-tidy against modified files, and returns diagnostics only on changed lines.",
+        epilog=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "-V", "--version", action="version", version=f"%(prog)s {__version__}"
@@ -39,40 +71,23 @@ def clang_tidy_diff():
     )
     args = parser.parse_args()
 
-    last_file = None
-    lines_per_file = {}
-    for line in sys.stdin:
-        m = re.search(ADDED_FILE_NAME_REGEX, line)
-        if m:
-            last_file = m.group("file")
-
-        if last_file is None:
-            continue
-
-        m = re.search(ADDED_LINES_REGEX, line)
-        if m is None:
-            continue
-
-        start_line = int(m.group("line"))
-        line_count = 1
-        if m.group("count") is not None:
-            line_count = int(m.group("count"))
-        if line_count == 0:
-            continue
-
-        end_line = start_line + line_count - 1
-        lines_per_file.setdefault(last_file, []).append([start_line, end_line])
-
-    if len(lines_per_file) == 0:
-        print("No relevant changes found.")
+    line_filter = LineFilter({})
+    _parse_gitdiff(
+        sys.stdin,
+        lambda file, start, end: line_filter.file_line_filters.setdefault(
+            file.resolve(), FileLineFilter([])
+        ).line_ranges.append(LineRange(start, end)),
+    )
+    if not line_filter.file_line_filters:
+        print("No relevant changes found.", file=sys.stderr)
         sys.exit(0)
 
-    filters = []
-    for file, lines in lines_per_file.items():
-        filters.append({"name": file, "lines": lines})
-
-    filters_json = json.dumps(filters)
-    command = ["clangd-tidy", "--line-filter", filters_json]
+    filters_json = json.dumps(cattrs.unstructure(line_filter))
+    command: List[Union[str, bytes, Path]] = [
+        "clangd-tidy",
+        "--line-filter",
+        filters_json,
+    ]
 
     if args.compile_commands_dir:
         command.extend(["--compile-commands-dir", args.compile_commands_dir])
@@ -80,7 +95,7 @@ def clang_tidy_diff():
     if args.pass_arg:
         command.extend(args.pass_arg)
 
-    files = list(lines_per_file.keys())
+    files = line_filter.file_line_filters.keys()
     command.append("--")
     command.extend(files)
 
