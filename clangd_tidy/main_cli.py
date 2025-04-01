@@ -196,7 +196,7 @@ def main_cli():
         any(
             (
                 diagnostic.severity
-                and diagnostic.severity >= SEVERITY_INT[args.fail_on_severity]
+                and diagnostic.severity <= SEVERITY_INT[args.fail_on_severity]
             )
             or diagnostic.source == "clang-format"
             for diagnostic in diagnostics
