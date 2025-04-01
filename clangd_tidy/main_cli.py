@@ -170,7 +170,14 @@ def main_cli():
 
     line_filter: Optional[LineFilter] = args.line_filter
     if line_filter is not None:
-        file_diagnostics = line_filter.filter_all_diagnostics(file_diagnostics)
+        file_diagnostics = {
+            file: [
+                diagnostic
+                for diagnostic in diagnostics
+                if line_filter.passes_line_filter(file, diagnostic)
+            ]
+            for file, diagnostics in file_diagnostics.items()
+        }
 
     formatter = (
         FancyDiagnosticFormatter(
