@@ -41,3 +41,8 @@ include = ["clangd_tidy"]
 pythonVersion = "3.8"
 pythonPlatform = "Linux"
 typeCheckingMode = "strict"
+
+[dependency-groups]
+dev = [
+    "basedpyright"
+]

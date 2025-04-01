@@ -1,6 +1,9 @@
 # Packages
 /clangd_tidy/_dist_ver.py
 
+# uv
+uv.lock
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
