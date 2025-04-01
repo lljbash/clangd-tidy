@@ -206,8 +206,8 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
     def _prepend_line_number(line: str, lino: Optional[int]) -> str:
         LINO_WIDTH = 5
         LINO_SEP = " |  "
-        lino_str = str(lino) if lino else ""
-        return f"{lino_str :{LINO_WIDTH}}{LINO_SEP}{line.rstrip()}\n"
+        lino_str = str(lino + 1) if lino is not None else ""
+        return f"{lino_str:>{LINO_WIDTH}}{LINO_SEP}{line.rstrip()}\n"
 
     def _code_context(
         self,
