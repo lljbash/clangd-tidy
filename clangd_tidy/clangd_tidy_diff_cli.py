@@ -13,7 +13,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Callable, List, NoReturn, Optional, TextIO, Union
+from typing import Callable, Dict, List, NoReturn, Optional, TextIO, Union
 
 import cattrs
 
@@ -71,17 +71,18 @@ def clang_tidy_diff() -> NoReturn:
     )
     args = parser.parse_args()
 
-    line_filter = LineFilter({})
+    line_filter_map: Dict[Path, FileLineFilter] = {}
     _parse_gitdiff(
         sys.stdin,
-        lambda file, start, end: line_filter.file_line_filters.setdefault(
-            file.resolve(), FileLineFilter([])
-        ).line_ranges.append(LineRange(start, end)),
+        lambda file, start, end: line_filter_map.setdefault(
+            file.resolve(), FileLineFilter(file.resolve(), [])
+        ).lines.append(LineRange(start, end)),
     )
-    if not line_filter.file_line_filters:
+    if not line_filter_map:
         print("No relevant changes found.", file=sys.stderr)
         sys.exit(0)
 
+    line_filter = LineFilter(list(line_filter_map.values()))
     filters_json = json.dumps(cattrs.unstructure(line_filter))
     command: List[Union[str, bytes, Path]] = [
         "clangd-tidy",
@@ -95,7 +96,7 @@ def clang_tidy_diff() -> NoReturn:
     if args.pass_arg:
         command.extend(args.pass_arg)
 
-    files = line_filter.file_line_filters.keys()
+    files = line_filter_map.keys()
     command.append("--")
     command.extend(files)
 
