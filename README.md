@@ -168,5 +168,8 @@ A big shoutout to [clangd](https://clangd.llvm.org/) and [clang-tidy](https://cl
 Claps to
 - [@ArchieAtkinson](https://github.com/ArchieAtkinson) for his artistic flair in the fancy diagnostic formatter.
 - [@jmpfar](https://github.com/jmpfar) for his contribution to hyperlink support and `clangd-tidy-diff`.
+- And all other contributors who have helped improve this project:
+    [@mateosss](https://github.com/mateosss)
+    [@kammce](https://github.com/kammce)
 
 Contributions are welcome! Feel free to open an issue or a pull request.
