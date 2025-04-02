@@ -90,8 +90,8 @@ class LineFilter:
         if first_match_filter is None:
             return False
 
-        # EXTRA: don't touch non-clang-tidy diagnostics
-        if diagnostic.source is not None and diagnostic.source != "clang-tidy":
+        # EXTRA: keep clang-format diagnostics unfiltered
+        if diagnostic.source is not None and diagnostic.source == "clang-format":
             return True
         # EXTRA: filter out clang-tidy diagnostics without source and code
         if diagnostic.source is None and diagnostic.code is None:
