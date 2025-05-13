@@ -69,5 +69,5 @@ class RpcEndpointAsync:
                 break
         if header.content_length is None:
             raise ValueError("Missing Content-Length header field")
-        content = await self._in_stream.read(header.content_length)
+        content = await self._in_stream.readexactly(header.content_length)
         return json.loads(content.decode())
