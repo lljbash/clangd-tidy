@@ -63,7 +63,7 @@ class RpcEndpointAsync:
     async def recv(self) -> Dict[str, Any]:
         header = ProtocolHeader()
         while True:
-            header_line = await self._in_stream.readline()
+            header_line = await self._in_stream.readuntil()
             Protocol.parse_header(header_line, header)
             if header.complete:
                 break
