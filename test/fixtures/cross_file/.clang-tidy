@@ -1,0 +1,7 @@
+---
+Checks:
+  - 'readability-identifier-naming'
+  - 'modernize-use-nullptr'
+CheckOptions:
+  - key: readability-identifier-naming.FunctionCase
+    value: lower_case

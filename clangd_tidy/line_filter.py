@@ -42,7 +42,7 @@ class FileLineFilter:
     File path
     """
 
-    lines: List[LineRange] = Factory(list)
+    lines: List[LineRange] = Factory(list[LineRange])
     """
     List of inclusive line ranges where diagnostics will be emitted
 

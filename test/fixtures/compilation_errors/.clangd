@@ -1,0 +1,4 @@
+Diagnostics:
+  ClangTidy:
+    Add: [modernize-use-nullptr]
+  UnusedIncludes: None

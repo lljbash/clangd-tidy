@@ -1,0 +1,10 @@
+#include <cstddef>
+bool foo(int* p){
+  if (p == nullptr) {
+  }
+  return true;
+}
+int main(){
+  foo(nullptr);
+  return 0;
+}

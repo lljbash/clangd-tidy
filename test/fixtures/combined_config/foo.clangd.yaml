@@ -1,0 +1,38 @@
+Diagnostics:
+- BuildDirectory: /home/vscode/workspace/test/fixtures/combined_config
+  DiagnosticMessage:
+    FileOffset: 45
+    FilePath: /home/vscode/workspace/test/fixtures/combined_config/test_fix.cpp
+    Message: use nullptr
+    Replacements:
+    - FilePath: /home/vscode/workspace/test/fixtures/combined_config/test_fix.cpp
+      Length: 4
+      Offset: 45
+      ReplacementText: nullptr
+  DiagnosticName: modernize-use-nullptr
+  Level: Warning
+- BuildDirectory: /home/vscode/workspace/test/fixtures/combined_config
+  DiagnosticMessage:
+    FileOffset: 65
+    FilePath: /home/vscode/workspace/test/fixtures/combined_config/test_fix.cpp
+    Message: converting integer literal to bool, use bool literal instead
+    Replacements:
+    - FilePath: /home/vscode/workspace/test/fixtures/combined_config/test_fix.cpp
+      Length: 1
+      Offset: 65
+      ReplacementText: 'true'
+  DiagnosticName: modernize-use-bool-literals
+  Level: Hint
+- BuildDirectory: /home/vscode/workspace/test/fixtures/combined_config
+  DiagnosticMessage:
+    FileOffset: 88
+    FilePath: /home/vscode/workspace/test/fixtures/combined_config/test_fix.cpp
+    Message: use nullptr
+    Replacements:
+    - FilePath: /home/vscode/workspace/test/fixtures/combined_config/test_fix.cpp
+      Length: 4
+      Offset: 88
+      ReplacementText: nullptr
+  DiagnosticName: modernize-use-nullptr
+  Level: Warning
+MainSourceFile: /home/vscode/workspace/test/fixtures/combined_config/test_fix.cpp

@@ -70,6 +70,32 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Also check code formatting with clang-format. Exits with a non-zero status if any file violates formatting rules.",
     )
+    check_group.add_argument(
+        "--fix",
+        action="store_true",
+        help="Apply suggested fixes to the files. Supports cross-file refactorings. Disables --fail-on-severity.",
+    )
+    check_group.add_argument(
+        "--format-style",
+        type=str,
+        default="none",
+        metavar="<string>",
+        help="Style for formatting code around applied fixes (only used with --fix). "
+        "Options: 'none' (default, no formatting), 'file' (use .clang-format), "
+        "'llvm', 'google', 'webkit', 'mozilla', or '{key: value, ...}' for inline configuration. "
+        "See clang-format documentation for details. Matches clang-tidy's --format-style behavior.",
+    )
+    check_group.add_argument(
+        "--export-fixes",
+        type=pathlib.Path,
+        default=None,
+        help="Export fixes to a YAML file. If this is used, --fix is ignored. Unlike clang-tidy, always uses absolute paths in the output YAML. Disables --fail-on-severity.",
+    )
+    check_group.add_argument(
+        "--clang-apply-replacements-executable",
+        default="clang-apply-replacements",
+        help="clang-apply-replacements executable. [default: clang-apply-replacements]",
+    )
 
     output_group = parser.add_argument_group("output options")
     output_group.add_argument(
