@@ -103,7 +103,11 @@ class ClangdRunner:
                     if resp.method == NotificationMethod.PUBLISH_DIAGNOSTICS:
                         params = cattrs.structure(resp.params, PublishDiagnosticsParams)
                         file = _uri_to_path(params.uri)
-                        if file in self._files:
+                        # Note: didClose triggers a new, empty publishDiagnostics
+                        # "file not in diagnostics" required to persist the first diagnostic, from the open file
+                        if file in self._files and file not in diagnostics:
+                            if file in formatting_diagnostics:
+                                await self._clangd.did_close(file) # all diagnostics received
                             diagnostics[file] = params.diagnostics
                             tqdm.update(pbar)  # type: ignore
                             self._sem.release()
@@ -114,18 +118,21 @@ class ClangdRunner:
                         resp.request.params, DocumentFormattingParams
                     )
                     file = _uri_to_path(params.textDocument.uri)
-                    formatting_diagnostics[file] = (
-                        [
-                            Diagnostic(
-                                range=Range(start=Position(0, 0), end=Position(0, 0)),
-                                message="File does not conform to the formatting rules (run `clang-format` to fix)",
-                                source="clang-format",
-                            )
-                        ]
-                        if resp.response.result
-                        else []
-                    )
-                    self._sem.release()
+                    if file not in formatting_diagnostics:
+                        if file in diagnostics:
+                            await self._clangd.did_close(file) # all diagnostics received
+                        formatting_diagnostics[file] = (
+                            [
+                                Diagnostic(
+                                    range=Range(start=Position(0, 0), end=Position(0, 0)),
+                                    message="File does not conform to the formatting rules (run `clang-format` to fix)",
+                                    source="clang-format",
+                                )
+                            ]
+                            if resp.response.result
+                            else []
+                        )
+                        self._sem.release()
         return {
             file: formatting_diagnostics[file] + diagnostics[file]
             for file in self._files

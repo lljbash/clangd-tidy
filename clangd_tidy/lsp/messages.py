@@ -23,6 +23,7 @@ class NotificationMethod(Enum):
     INITIALIZED = "initialized"
     EXIT = "exit"
     DID_OPEN = "textDocument/didOpen"
+    DID_CLOSE = "textDocument/didClose"
     PUBLISH_DIAGNOSTICS = "textDocument/publishDiagnostics"
 
 
@@ -88,6 +89,11 @@ class TextDocumentItem:
 
 @define
 class DidOpenTextDocumentParams(Params):
+    textDocument: TextDocumentItem
+
+
+@define
+class DidCloseTextDocumentParams(Params):
     textDocument: TextDocumentItem
 
 
