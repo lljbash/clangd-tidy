@@ -6,6 +6,7 @@ from typing import Union
 
 from .client import ClientAsync, RequestResponsePair
 from .messages import (
+    DidCloseTextDocumentParams,
     DidOpenTextDocumentParams,
     DocumentFormattingParams,
     InitializeParams,
@@ -87,6 +88,13 @@ class ClangdAsync:
                     text=path.read_text(),
                 )
             ),
+        )
+
+    async def did_close(self, path: pathlib.Path) -> None:
+        assert path.is_file()
+        await self._client.notify(
+            NotificationMethod.DID_CLOSE,
+            DidCloseTextDocumentParams(TextDocumentIdentifier(uri=path.as_uri())),
         )
 
     async def formatting(self, path: pathlib.Path) -> None:

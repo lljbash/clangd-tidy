@@ -23,6 +23,7 @@ class NotificationMethod(Enum):
     INITIALIZED = "initialized"
     EXIT = "exit"
     DID_OPEN = "textDocument/didOpen"
+    DID_CLOSE = "textDocument/didClose"
     PUBLISH_DIAGNOSTICS = "textDocument/publishDiagnostics"
 
 
@@ -87,8 +88,18 @@ class TextDocumentItem:
 
 
 @define
+class TextDocumentIdentifier:
+    uri: str
+
+
+@define
 class DidOpenTextDocumentParams(Params):
     textDocument: TextDocumentItem
+
+
+@define
+class DidCloseTextDocumentParams(Params):
+    textDocument: TextDocumentIdentifier
 
 
 @define
@@ -146,11 +157,6 @@ class PublishDiagnosticsParams(Params):
 @define
 class WorkDoneProgressParams(Params):
     workDoneToken: Any = None
-
-
-@define
-class TextDocumentIdentifier:
-    uri: str
 
 
 @define(kw_only=True)
