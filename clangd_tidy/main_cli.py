@@ -83,8 +83,8 @@ class ClangdRunner:
             await self._sem.acquire()
             await self._clangd.did_open(file)
             if self._run_format:
-                await self._sem.acquire()
                 await self._clangd.formatting(file)
+
 
     async def _collect_diagnostics(self) -> DiagnosticCollection:
         diagnostics: DiagnosticCollection = {}
@@ -106,9 +106,7 @@ class ClangdRunner:
                         # Note: didClose triggers a new, empty publishDiagnostics
                         # "file not in diagnostics" required to persist the first diagnostic, from the open file
                         if file in self._files and file not in diagnostics:
-                            if file in formatting_diagnostics:
-                                # All diagnostics received
-                                await self._clangd.did_close(file)
+                            await self._clangd.did_close(file)
                             diagnostics[file] = params.diagnostics
                             tqdm.update(pbar)  # type: ignore
                             self._sem.release()
@@ -119,24 +117,19 @@ class ClangdRunner:
                         resp.request.params, DocumentFormattingParams
                     )
                     file = _uri_to_path(params.textDocument.uri)
-                    if file not in formatting_diagnostics:
-                        if file in diagnostics:
-                            # All diagnostics received
-                            await self._clangd.did_close(file)
-                        formatting_diagnostics[file] = (
-                            [
-                                Diagnostic(
-                                    range=Range(
-                                        start=Position(0, 0), end=Position(0, 0)
-                                    ),
-                                    message="File does not conform to the formatting rules (run `clang-format` to fix)",
-                                    source="clang-format",
-                                )
-                            ]
-                            if resp.response.result
-                            else []
-                        )
-                        self._sem.release()
+                    formatting_diagnostics[file] = (
+                        [
+                            Diagnostic(
+                                range=Range(
+                                    start=Position(0, 0), end=Position(0, 0)
+                                ),
+                                message="File does not conform to the formatting rules (run `clang-format` to fix)",
+                                source="clang-format",
+                            )
+                        ]
+                        if resp.response.result
+                        else []
+                    )
         return {
             file: formatting_diagnostics[file] + diagnostics[file]
             for file in self._files

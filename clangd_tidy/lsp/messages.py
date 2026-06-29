@@ -88,13 +88,18 @@ class TextDocumentItem:
 
 
 @define
+class TextDocumentIdentifier:
+    uri: str
+
+
+@define
 class DidOpenTextDocumentParams(Params):
     textDocument: TextDocumentItem
 
 
 @define
 class DidCloseTextDocumentParams(Params):
-    textDocument: TextDocumentItem
+    textDocument: TextDocumentIdentifier
 
 
 @define
@@ -152,11 +157,6 @@ class PublishDiagnosticsParams(Params):
 @define
 class WorkDoneProgressParams(Params):
     workDoneToken: Any = None
-
-
-@define
-class TextDocumentIdentifier:
-    uri: str
 
 
 @define(kw_only=True)

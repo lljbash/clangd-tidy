@@ -94,14 +94,7 @@ class ClangdAsync:
         assert path.is_file()
         await self._client.notify(
             NotificationMethod.DID_CLOSE,
-            DidCloseTextDocumentParams(
-                TextDocumentItem(
-                    uri=path.as_uri(),
-                    languageId=LanguageId.CPP,
-                    version=1,
-                    text=path.read_text(),
-                )
-            ),
+            DidCloseTextDocumentParams(TextDocumentIdentifier(uri=path.as_uri())),
         )
 
     async def formatting(self, path: pathlib.Path) -> None:
