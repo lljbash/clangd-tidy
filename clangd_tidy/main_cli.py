@@ -85,7 +85,6 @@ class ClangdRunner:
             if self._run_format:
                 await self._clangd.formatting(file)
 
-
     async def _collect_diagnostics(self) -> DiagnosticCollection:
         diagnostics: DiagnosticCollection = {}
         formatting_diagnostics: DiagnosticCollection = (
@@ -120,9 +119,7 @@ class ClangdRunner:
                     formatting_diagnostics[file] = (
                         [
                             Diagnostic(
-                                range=Range(
-                                    start=Position(0, 0), end=Position(0, 0)
-                                ),
+                                range=Range(start=Position(0, 0), end=Position(0, 0)),
                                 message="File does not conform to the formatting rules (run `clang-format` to fix)",
                                 source="clang-format",
                             )
