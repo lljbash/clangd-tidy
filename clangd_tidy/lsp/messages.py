@@ -1,6 +1,6 @@
 from enum import Enum, unique
 from functools import total_ordering
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from attrs import Factory, define
 from typing_extensions import Self
@@ -40,27 +40,27 @@ class Params:
 class RequestMessage(Message):
     id: int
     method: RequestMethod
-    params: Dict[str, Any] = Factory(dict)
+    params: dict[str, Any] = Factory(dict)
 
 
 @define
 class ResponseError:
     code: int
     message: str
-    data: Optional[Dict[str, Any]] = None
+    data: dict[str, Any] | None = None
 
 
 @define(kw_only=True)
 class ResponseMessage(Message):
     id: int
     result: Any = None
-    error: Optional[ResponseError] = None
+    error: ResponseError | None = None
 
 
 @define(kw_only=True)
 class LspNotificationMessage(Message):
     method: NotificationMethod
-    params: Dict[str, Any] = Factory(dict)
+    params: dict[str, Any] = Factory(dict)
 
 
 @define
@@ -71,11 +71,11 @@ class WorkspaceFolder:
 
 @define
 class InitializeParams(Params):
-    processId: Optional[int] = None
-    rootUri: Optional[str] = None
+    processId: int | None = None
+    rootUri: str | None = None
     initializationOptions: Any = None
     capabilities: Any = None
-    workspaceFolders: List[WorkspaceFolder] = Factory(list)
+    workspaceFolders: list[WorkspaceFolder] = Factory(list)
 
 
 @define
@@ -126,21 +126,21 @@ class CodeDescription:
 class Diagnostic:
     range: Range
     message: str
-    severity: Optional[DiagnosticSeverity] = None
+    severity: DiagnosticSeverity | None = None
     code: Any = None
-    codeDescription: Optional[CodeDescription] = None
-    source: Optional[str] = None
-    tags: Optional[List[Any]] = None
-    relatedInformation: Optional[List[Any]] = None
+    codeDescription: CodeDescription | None = None
+    source: str | None = None
+    tags: list[Any] | None = None
+    relatedInformation: list[Any] | None = None
     data: Any = None
-    uri: Optional[str] = None  # not in LSP spec, but clangd sends it
+    uri: str | None = None  # not in LSP spec, but clangd sends it
 
 
 @define
 class PublishDiagnosticsParams(Params):
     uri: str
-    diagnostics: List[Diagnostic]
-    version: Optional[int] = None
+    diagnostics: list[Diagnostic]
+    version: int | None = None
 
 
 @define
@@ -156,4 +156,4 @@ class TextDocumentIdentifier:
 @define(kw_only=True)
 class DocumentFormattingParams(WorkDoneProgressParams):
     textDocument: TextDocumentIdentifier
-    options: Dict[str, Any] = Factory(dict)
+    options: dict[str, Any] = Factory(dict)

@@ -1,9 +1,8 @@
-#!/usr/bin/env python3
-
 import asyncio
-import pathlib
 import sys
-from typing import Collection, List, Optional, TextIO
+from collections.abc import Collection
+from pathlib import Path
+from typing import TextIO
 from unittest.mock import MagicMock
 from urllib.parse import unquote, urlparse
 
@@ -32,13 +31,13 @@ from .lsp.messages import (
 __all__ = ["main_cli"]
 
 
-def _uri_to_path(uri: str) -> pathlib.Path:
+def _uri_to_path(uri: str) -> Path:
     path = unquote(urlparse(uri).path)
     # On Windows, file URIs like "file:///c:/path" get parsed as "/c:/path"
     # Remove the leading slash if it's followed by a drive letter
     if len(path) > 2 and path[0] == "/" and path[2] == ":":
         path = path[1:]
-    return pathlib.Path(path)
+    return Path(path)
 
 
 def _is_output_supports_color(output: TextIO) -> bool:
@@ -48,7 +47,7 @@ def _is_output_supports_color(output: TextIO) -> bool:
 def _try_import_tqdm(enabled: bool):
     if enabled:
         try:
-            from tqdm import tqdm  # type: ignore
+            from tqdm import tqdm
 
             return tqdm
         except ImportError:
@@ -63,7 +62,7 @@ class ClangdRunner:
     def __init__(
         self,
         clangd: ClangdAsync,
-        files: Collection[pathlib.Path],
+        files: Collection[Path],
         run_format: bool,
         tqdm: bool,
         max_pending_requests: int,
@@ -105,7 +104,7 @@ class ClangdRunner:
                         file = _uri_to_path(params.uri)
                         if file in self._files:
                             diagnostics[file] = params.diagnostics
-                            tqdm.update(pbar)  # type: ignore
+                            tqdm.update(pbar)
                             self._sem.release()
                 else:
                     assert resp.request.method == RequestMethod.FORMATTING
@@ -133,7 +132,7 @@ class ClangdRunner:
 
     async def _acquire_diagnostics(self) -> DiagnosticCollection:
         await self._clangd.start()
-        await self._clangd.initialize(pathlib.Path.cwd())
+        await self._clangd.initialize(Path.cwd())
         init_resp = await self._clangd.recv_response_or_notification()
         assert isinstance(init_resp, RequestResponsePair)
         assert init_resp.request.method == RequestMethod.INITIALIZE
@@ -150,7 +149,7 @@ class ClangdRunner:
 def main_cli():
     args = parse_args()
 
-    files: List[pathlib.Path] = args.filename
+    files: list[Path] = args.filename
     files = [
         file.resolve() for file in files if file.suffix[1:] in args.allow_extensions
     ]
@@ -173,7 +172,7 @@ def main_cli():
         max_pending_requests=args.jobs * 2,
     ).acquire_diagnostics()
 
-    line_filter: Optional[LineFilter] = args.line_filter
+    line_filter: LineFilter | None = args.line_filter
     if line_filter is not None:
         file_diagnostics = {
             file: [
@@ -215,4 +214,4 @@ def main_cli():
         )
         for diagnostics in file_diagnostics.values()
     ):
-        exit(1)
+        sys.exit(1)

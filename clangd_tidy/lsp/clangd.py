@@ -1,8 +1,7 @@
 import asyncio
 import os
-import pathlib
 import sys
-from typing import Union
+from pathlib import Path
 
 from .client import ClientAsync, RequestResponsePair
 from .messages import (
@@ -42,7 +41,7 @@ class ClangdAsync:
         ]
         if query_driver:
             self._clangd_cmd.append(f"--query-driver={query_driver}")
-        self._stderr = sys.stderr if verbose else open(os.devnull, "w")
+        self._stderr = sys.stderr if verbose else open(os.devnull, "w")  # ruff: ignore[open-file-with-context-handler]
 
     async def start(self) -> None:
         self._process = await asyncio.create_subprocess_exec(
@@ -57,10 +56,10 @@ class ClangdAsync:
 
     async def recv_response_or_notification(
         self,
-    ) -> Union[RequestResponsePair, LspNotificationMessage]:
+    ) -> RequestResponsePair | LspNotificationMessage:
         return await self._client.recv()
 
-    async def initialize(self, root: pathlib.Path) -> None:
+    async def initialize(self, root: Path) -> None:
         assert root.is_dir()
         await self._client.request(
             RequestMethod.INITIALIZE,
@@ -75,7 +74,7 @@ class ClangdAsync:
     async def initialized(self) -> None:
         await self._client.notify(NotificationMethod.INITIALIZED)
 
-    async def did_open(self, path: pathlib.Path) -> None:
+    async def did_open(self, path: Path) -> None:
         assert path.is_file()
         await self._client.notify(
             NotificationMethod.DID_OPEN,
@@ -89,7 +88,7 @@ class ClangdAsync:
             ),
         )
 
-    async def formatting(self, path: pathlib.Path) -> None:
+    async def formatting(self, path: Path) -> None:
         assert path.is_file()
         await self._client.request(
             RequestMethod.FORMATTING,

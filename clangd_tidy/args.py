@@ -1,8 +1,8 @@
 import argparse
 import json
 import os
-import pathlib
 import sys
+from pathlib import Path
 
 import cattrs
 
@@ -13,12 +13,12 @@ from .version import __version__
 __all__ = ["SEVERITY_INT", "parse_args"]
 
 
-SEVERITY_INT = dict(
-    error=DiagnosticSeverity.ERROR,
-    warn=DiagnosticSeverity.WARNING,
-    info=DiagnosticSeverity.INFORMATION,
-    hint=DiagnosticSeverity.HINT,
-)
+SEVERITY_INT = {
+    "error": DiagnosticSeverity.ERROR,
+    "warn": DiagnosticSeverity.WARNING,
+    "info": DiagnosticSeverity.INFORMATION,
+    "hint": DiagnosticSeverity.HINT,
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -46,7 +46,7 @@ def parse_args() -> argparse.Namespace:
     input_group.add_argument(
         "filename",
         nargs="+",
-        type=pathlib.Path,
+        type=Path,
         help="Files to analyze. Ignores files with extensions not listed in ALLOW_EXTENSIONS.",
     )
     input_group.add_argument(
@@ -75,7 +75,7 @@ def parse_args() -> argparse.Namespace:
     output_group.add_argument(
         "-o",
         "--output",
-        type=argparse.FileType("w"),
+        type=argparse.FileType("w"),  # ty:ignore[deprecated]
         default=sys.stdout,
         help="Output file for diagnostics. [default: stdout]",
     )

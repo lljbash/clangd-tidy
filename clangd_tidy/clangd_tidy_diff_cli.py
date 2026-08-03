@@ -12,8 +12,9 @@ import json
 import re
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Dict, List, NoReturn, Optional, TextIO, Union
+from typing import NoReturn, TextIO
 
 import cattrs
 
@@ -30,7 +31,7 @@ def _parse_gitdiff(
     ADDED_FILE_NAME_REGEX = re.compile(r'^\+\+\+ "?(?P<prefix>.*?/)(?P<file>[^\s"]*)')
     ADDED_LINES_REGEX = re.compile(r"^@@.*\+(?P<line>\d+)(,(?P<count>\d+))?")
 
-    last_file: Optional[str] = None
+    last_file: str | None = None
     for line in text:
         m = re.search(ADDED_FILE_NAME_REGEX, line)
         if m is not None:
@@ -71,7 +72,7 @@ def clang_tidy_diff() -> NoReturn:
     )
     args = parser.parse_args()
 
-    line_filter_map: Dict[Path, FileLineFilter] = {}
+    line_filter_map: dict[Path, FileLineFilter] = {}
     _parse_gitdiff(
         sys.stdin,
         lambda file, start, end: line_filter_map.setdefault(
@@ -84,7 +85,7 @@ def clang_tidy_diff() -> NoReturn:
 
     line_filter = LineFilter(list(line_filter_map.values()))
     filters_json = json.dumps(cattrs.unstructure(line_filter))
-    command: List[Union[str, bytes, Path]] = [
+    command: list[str | bytes | Path] = [
         "clangd-tidy",
         "--line-filter",
         filters_json,
@@ -100,7 +101,7 @@ def clang_tidy_diff() -> NoReturn:
     command.append("--")
     command.extend(files)
 
-    sys.exit(subprocess.run(command).returncode)
+    sys.exit(subprocess.run(command, check=False).returncode)
 
 
 if __name__ == "__main__":

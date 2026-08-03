@@ -1,15 +1,15 @@
 import asyncio
 import json
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 __all__ = ["RpcEndpointAsync"]
 
 
 @dataclass
 class ProtocolHeader:
-    content_length: Optional[int] = None
-    content_type: Optional[str] = None
+    content_length: int | None = None
+    content_type: str | None = None
     complete: bool = False
 
 
@@ -20,7 +20,7 @@ class Protocol:
     _TYPE_HEADER = "Content-Type: "
 
     @classmethod
-    def encode(cls, data: Dict[str, Any]) -> bytes:
+    def encode(cls, data: dict[str, Any]) -> bytes:
         content = json.dumps(data)
         header = f"{cls._LEN_HEADER}{len(content.encode())}"
         message = f"{header}{cls._HEADER_CONTENT_SEP}{content}"
@@ -56,11 +56,11 @@ class RpcEndpointAsync:
         self._in_stream = in_stream
         self._out_stream = out_stream
 
-    async def send(self, data: Dict[str, Any]) -> None:
+    async def send(self, data: dict[str, Any]) -> None:
         self._out_stream.write(Protocol.encode(data))
         await self._out_stream.drain()
 
-    async def recv(self) -> Dict[str, Any]:
+    async def recv(self) -> dict[str, Any]:
         header = ProtocolHeader()
         while True:
             header_line = await self._in_stream.readline()

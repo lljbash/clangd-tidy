@@ -1,25 +1,26 @@
 import os
-import pathlib
 import re
 from abc import ABC, abstractmethod
-from typing import Dict, Iterable, List, Optional
+from collections.abc import Iterable
+from pathlib import Path
+from typing import ClassVar
 
 from .lsp.messages import Diagnostic, DiagnosticSeverity
 
 __all__ = [
+    "CompactDiagnosticFormatter",
     "DiagnosticCollection",
     "DiagnosticFormatter",
-    "CompactDiagnosticFormatter",
     "FancyDiagnosticFormatter",
     "GithubActionWorkflowCommandDiagnosticFormatter",
 ]
 
 
-DiagnosticCollection = Dict[pathlib.Path, List[Diagnostic]]
+DiagnosticCollection = dict[Path, list[Diagnostic]]
 
 
 class DiagnosticFormatter(ABC):
-    SEVERITY = {
+    SEVERITY: ClassVar[dict[int, str]] = {
         1: "Error",
         2: "Warning",
         3: "Information",
@@ -27,7 +28,7 @@ class DiagnosticFormatter(ABC):
     }
 
     def format(self, diagnostic_collection: DiagnosticCollection) -> str:
-        file_outputs: List[str] = []
+        file_outputs: list[str] = []
         for file, diagnostics in sorted(
             diagnostic_collection.items(), key=lambda fd: fd[0].as_posix()
         ):
@@ -45,15 +46,11 @@ class DiagnosticFormatter(ABC):
         return self._make_whole_output(file_outputs)
 
     @abstractmethod
-    def _format_one_diagnostic(
-        self, file: pathlib.Path, diagnostic: Diagnostic
-    ) -> Optional[str]:
+    def _format_one_diagnostic(self, file: Path, diagnostic: Diagnostic) -> str | None:
         pass
 
     @abstractmethod
-    def _make_file_output(
-        self, file: pathlib.Path, diagnostic_outputs: Iterable[str]
-    ) -> str:
+    def _make_file_output(self, file: Path, diagnostic_outputs: Iterable[str]) -> str:
         pass
 
     @abstractmethod
@@ -62,9 +59,7 @@ class DiagnosticFormatter(ABC):
 
 
 class CompactDiagnosticFormatter(DiagnosticFormatter):
-    def _format_one_diagnostic(
-        self, file: pathlib.Path, diagnostic: Diagnostic
-    ) -> Optional[str]:
+    def _format_one_diagnostic(self, file: Path, diagnostic: Diagnostic) -> str | None:
         del file
         source = diagnostic.source
         severity = diagnostic.severity
@@ -81,9 +76,7 @@ class CompactDiagnosticFormatter(DiagnosticFormatter):
             return None
         return f"- line {line}, col {col}:{extra_info}\n{message}"
 
-    def _make_file_output(
-        self, file: pathlib.Path, diagnostic_outputs: Iterable[str]
-    ) -> str:
+    def _make_file_output(self, file: Path, diagnostic_outputs: Iterable[str]) -> str:
         head = f"----- {os.path.relpath(file)} -----"
         return "\n\n".join([head, *diagnostic_outputs])
 
@@ -92,7 +85,7 @@ class CompactDiagnosticFormatter(DiagnosticFormatter):
 
 
 class GithubActionWorkflowCommandDiagnosticFormatter(DiagnosticFormatter):
-    SEVERITY_GITHUB = {
+    SEVERITY_GITHUB: ClassVar = {
         1: "error",
         2: "warning",
         3: "notice",
@@ -102,9 +95,7 @@ class GithubActionWorkflowCommandDiagnosticFormatter(DiagnosticFormatter):
     def __init__(self, git_root: str):
         self._git_root = git_root
 
-    def _format_one_diagnostic(
-        self, file: pathlib.Path, diagnostic: Diagnostic
-    ) -> Optional[str]:
+    def _format_one_diagnostic(self, file: Path, diagnostic: Diagnostic) -> str | None:
         source = diagnostic.source
         severity = diagnostic.severity
         code = diagnostic.code
@@ -126,9 +117,7 @@ class GithubActionWorkflowCommandDiagnosticFormatter(DiagnosticFormatter):
         rel_file = os.path.relpath(file, self._git_root)
         return f"::{command} file={rel_file},line={line},endLine={end_line},col={col},endCol={end_col},title={extra_info}::{message}"
 
-    def _make_file_output(
-        self, file: pathlib.Path, diagnostic_outputs: Iterable[str]
-    ) -> str:
+    def _make_file_output(self, file: Path, diagnostic_outputs: Iterable[str]) -> str:
         del file
         return "\n".join(diagnostic_outputs)
 
@@ -203,7 +192,7 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
         return self._colorizer.per_severity(severity, self.SEVERITY[severity])
 
     @staticmethod
-    def _prepend_line_number(line: str, lino: Optional[int]) -> str:
+    def _prepend_line_number(line: str, lino: int | None) -> str:
         LINO_WIDTH = 5
         LINO_SEP = " |  "
         lino_str = str(lino + 1) if lino is not None else ""
@@ -216,7 +205,7 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
         line_end: int,
         col_start: int,
         col_end: int,
-        extra_context: Optional[int] = None,
+        extra_context: int | None = None,
     ) -> str:
         UNDERLINE = "~"
         UNDERLINE_START = "^"
@@ -265,9 +254,7 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
     def _formatting_message(self, file: str, message: str) -> str:
         return self._colorizer.format(f"{file}: {message}")
 
-    def _format_one_diagnostic(
-        self, file: pathlib.Path, diagnostic: Diagnostic
-    ) -> Optional[str]:
+    def _format_one_diagnostic(self, file: Path, diagnostic: Diagnostic) -> str | None:
         rel_file = os.path.relpath(file)
 
         if diagnostic.source == "clang-format":
@@ -318,9 +305,7 @@ class FancyDiagnosticFormatter(DiagnosticFormatter):
 
         return fancy_output
 
-    def _make_file_output(
-        self, file: pathlib.Path, diagnostic_outputs: Iterable[str]
-    ) -> str:
+    def _make_file_output(self, file: Path, diagnostic_outputs: Iterable[str]) -> str:
         del file
         return "\n\n".join(diagnostic_outputs)
 
