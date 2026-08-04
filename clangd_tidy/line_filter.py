@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, List
+from typing import Any
 
 import cattrs
 from attr import Factory
@@ -20,14 +20,14 @@ class LineRange:
 
 
 @cattrs.register_structure_hook
-def range_structure_hook(val: List[int], _: type) -> LineRange:
+def range_structure_hook(val: list[int], _: type) -> LineRange:
     if len(val) != 2:
         raise ValueError("Range must be a list of two integers.")
     return LineRange(val[0], val[1])
 
 
 @cattrs.register_unstructure_hook
-def range_unstructure_hook(obj: LineRange) -> List[int]:
+def range_unstructure_hook(obj: LineRange) -> list[int]:
     return [obj.start, obj.end]
 
 
@@ -42,7 +42,7 @@ class FileLineFilter:
     File path
     """
 
-    lines: List[LineRange] = Factory(list)  # type: ignore
+    lines: list[LineRange] = Factory(list)
     """
     List of inclusive line ranges where diagnostics will be emitted
 
@@ -66,7 +66,7 @@ class LineFilter:
     This is meant to be compatible with clang-tidy --line-filter syntax.
     """
 
-    file_line_filters: List[FileLineFilter]
+    file_line_filters: list[FileLineFilter]
     """
     The format of the list is a JSON array of objects:
       [
@@ -103,10 +103,10 @@ class LineFilter:
 
 
 @cattrs.register_structure_hook
-def line_filter_structure_hook(val: List[Any], _: type) -> LineFilter:
+def line_filter_structure_hook(val: list[Any], _: type) -> LineFilter:
     return LineFilter([cattrs.structure(f, FileLineFilter) for f in val])
 
 
 @cattrs.register_unstructure_hook
-def line_filter_unstructure_hook(obj: LineFilter) -> List[FileLineFilter]:
+def line_filter_unstructure_hook(obj: LineFilter) -> list[FileLineFilter]:
     return [cattrs.unstructure(f) for f in obj.file_line_filters]

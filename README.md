@@ -43,7 +43,7 @@ Unfortunately, there seems to be no plan within LLVM to accelerate the standalon
 ## Prerequisites
 
 - [clangd](https://clangd.llvm.org/)
-- Python 3.8+ (may work on older versions, but not tested)
+- Python 3.10+
 - [attrs](https://www.attrs.org/) and [cattrs](https://catt.rs/) (automatically installed if clangd-tidy is installed via pip)
 - [tqdm](https://github.com/tqdm/tqdm) (optional, required for progress bar support)
 

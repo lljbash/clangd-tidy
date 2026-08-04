@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "clangd-tidy"
 dynamic = ["version"]
 dependencies = ["attrs", "cattrs", "typing-extensions"]
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 authors = [{ name = "lljbash", email = "lljbash@gmail.com" }]
 description = "A faster alternative to clang-tidy"
 readme = "README.md"
@@ -30,19 +30,24 @@ clangd-tidy-diff = "clangd_tidy:clang_tidy_diff"
 "Bug Tracker" = "https://github.com/lljbash/clangd-tidy/issues"
 
 [tool.setuptools_scm]
-write_to = "clangd_tidy/_dist_ver.py"
+version_file = "clangd_tidy/_dist_ver.py"
 
-[tool.black]
-include = '\.pyi?$'
-required-version = "25"
+[tool.ruff]
+exclude = ["clangd_tidy/_dist_ver.py"]
+fix = true
+preview = true
 
-[tool.basedpyright]
-include = ["clangd_tidy"]
-pythonVersion = "3.8"
-pythonPlatform = "Linux"
-typeCheckingMode = "strict"
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.ty.analysis]
+allowed-unresolved-imports = ["clangd_tidy._dist_ver", "setuptools_scm", "tqdm"]
+
+[tool.ty.environment]
+python-platform = "all"
 
 [dependency-groups]
 dev = [
-    "basedpyright"
+    "ruff",
+    "ty",
 ]

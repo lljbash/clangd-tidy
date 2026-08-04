@@ -8,10 +8,8 @@ on:
       - master
 
 jobs:
-  python-black:
+  prek:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: psf/black@stable
-        with: # see: https://black.readthedocs.io/en/stable/integrations/github_actions.html
-          version: "~= 25.0"
+      - uses: actions/checkout@v7
+      - uses: j178/prek-action@v3.0.0
