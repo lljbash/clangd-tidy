@@ -24,7 +24,12 @@ from typing_extensions import Self
 
 
 def uri_to_path(uri: str) -> pathlib.Path:
-    return pathlib.Path(unquote(urlparse(uri).path))
+    path = unquote(urlparse(uri).path)
+    # On Windows, file URIs like "file:///c:/path" get parsed as "/c:/path"
+    # Remove the leading slash if it's followed by a drive letter
+    if len(path) > 2 and path[0] == "/" and path[2] == ":":
+        path = path[1:]
+    return pathlib.Path(path)
 
 
 @define
