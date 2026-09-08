@@ -21,6 +21,14 @@ SEVERITY_INT = dict(
 )
 
 
+def _job_count(input: str) -> int:
+    jobs = int(input)
+    if jobs > 0:
+        return jobs
+    cpu_count = max(1, (os.cpu_count() or 1))
+    return cpu_count if cpu_count <= 4 else cpu_count - 1
+
+
 def parse_args() -> argparse.Namespace:
     DEFAULT_ALLOWED_EXTENSIONS = [
         "c",
@@ -135,9 +143,9 @@ def parse_args() -> argparse.Namespace:
     clangd_group.add_argument(
         "-j",
         "--jobs",
-        type=int,
-        default=1,
-        help="Number of async workers used by clangd. Background index also uses this many workers. [default: 1]",
+        type=_job_count,
+        default="0",
+        help="Number of async workers used by clangd. Background index also uses this many workers. A non-positive integer will attempt to auto-detect your CPU core count. [default: 0]",
     )
     clangd_group.add_argument(
         "--clangd-executable",
