@@ -1,0 +1,8 @@
+- id: clangd-tidy
+  name: clangd-tidy
+  entry: clangd-tidy
+  description: Runs clangd-tidy against passed files
+  language: python
+  types_or: [c++, c, objective-c]
+  require_serial: true
+  additional_dependencies: [clangd, clang-tidy]
