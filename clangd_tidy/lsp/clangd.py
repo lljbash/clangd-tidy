@@ -104,11 +104,10 @@ class ClangdAsync:
     async def exit(self) -> None:
         await self._client.notify(NotificationMethod.EXIT)
         self._process.kill()  # PERF: much faster than waiting for clangd to exit
-        await self._process.wait()
 
-        # HACK: prevent RuntimeError('Event loop is closed') before Python 3.11
-        # see https://github.com/python/cpython/issues/88050
-        if sys.version_info < (3, 11):
+        try:
+            await self._process.wait()
+        finally:  # HACK: Prevent dangling handles on Python <= 3.11 and Windows
             self._process._transport.close()  # type: ignore
 
         self._stderr.close()
