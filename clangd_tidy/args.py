@@ -101,7 +101,7 @@ def parse_args() -> argparse.Namespace:
     output_group.add_argument(
         "-o",
         "--output",
-        type=argparse.FileType("w"),
+        type=argparse.FileType("w"),  # pyright: ignore[reportDeprecated]
         default=sys.stdout,
         help="Output file for diagnostics. [default: stdout]",
     )
