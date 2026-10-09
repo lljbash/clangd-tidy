@@ -1,0 +1,7 @@
+InlayHints:
+  Enabled: false
+CompileFlags:
+  Add: [-Wextra]
+Diagnostics:
+  ClangTidy:
+    Add: [modernize-use-nullptr, modernize-use-bool-literals]

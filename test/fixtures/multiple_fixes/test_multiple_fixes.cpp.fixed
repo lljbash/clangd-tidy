@@ -1,0 +1,5 @@
+class Test {
+  void set_foo(int new_foo) { foo = new_foo; }
+ private:
+  int foo;
+};

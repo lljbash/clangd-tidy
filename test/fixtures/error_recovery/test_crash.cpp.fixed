@@ -1,0 +1,10 @@
+namespace BadNamespace {
+    void bad_function() {
+        // Do something
+    }
+}
+
+int main() {
+    BadNamespace::bad_function();
+    return 0;
+}

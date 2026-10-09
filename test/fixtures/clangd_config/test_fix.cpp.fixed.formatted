@@ -1,0 +1,9 @@
+#include <cstddef>
+void foo(int* p){
+  if (p == nullptr) {
+  }
+}
+int main(){
+  foo(nullptr);
+  return 0;
+}
