@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import asyncio
+import os
 import pathlib
 import sys
 from typing import Collection, List, Optional, TextIO
@@ -42,6 +43,10 @@ def _uri_to_path(uri: str) -> pathlib.Path:
 
 
 def _is_output_supports_color(output: TextIO) -> bool:
+    if os.getenv("NO_COLOR") is not None:
+        return False
+    if os.getenv("FORCE_COLOR", os.getenv("CLICOLOR_FORCE")) is not None:
+        return True
     return hasattr(output, "isatty") and output.isatty()
 
 
